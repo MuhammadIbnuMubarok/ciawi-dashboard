@@ -4,7 +4,6 @@ const fmt2=x=>x==null?"—":x.toLocaleString("id-ID",{minimumFractionDigits:2,ma
 const MONTHS=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
 const tglID=iso=>(+iso.slice(8,10))+" "+MONTHS[+iso.slice(5,7)-1]+" "+iso.slice(0,4);
 const stamp=r=>tglID(r.tanggal)+" "+r.jam;
-let selectedYears=new Set(),selectedMonths=new Set();
 let workingDataset=[...REAL_DATA];
 let currentPage=1,pageSize=12,currentInterval="1h",currentPreset="all",tableMinimized=false,currentChart="flood-jul2025";
 const CHART_SCENARIOS={
@@ -85,13 +84,13 @@ function buildOverview(){const src=(typeof getBaseDataset==="function")?getBaseD
 CHART_SCENARIOS["all-overview"]=buildOverview();
 
 /* init dipindah ke blok bawah */
-for(let i=1;i<=12;i++)selectedMonths.add(String(i).padStart(2,"0"));
+let selectedMonths=new Set();for(let i=1;i<=12;i++)selectedMonths.add(String(i).padStart(2,"0"));
 function monthCounts(){const src=(typeof getBaseDataset==="function")?getBaseDataset():REAL_DATA;const c={};src.forEach(r=>{const m=r.tanggal.slice(5,7);c[m]=(c[m]||0)+1;});return c;}
 function renderMonthChecks(){const box=document.getElementById("month-checks");if(!box)return;if(!selectedMonths.size){for(let i=1;i<=12;i++)selectedMonths.add(String(i).padStart(2,"0"));}const c=monthCounts();let h="";for(let i=1;i<=12;i++){const m=String(i).padStart(2,"0");h+='<label class="flex items-center gap-1 text-[11px] bg-surface-container px-2 py-1 rounded cursor-pointer hover:bg-surface-container-high"><input type="checkbox" '+(selectedMonths.has(m)?"checked":"")+' onchange="toggleMonth(\''+m+'\',this.checked)" class="rounded bg-surface-container-lowest border-outline-variant/60"><span class="text-on-surface font-bold">'+MONTHS[i-1]+'</span><span class="text-on-surface-variant">('+(c[m]||0)+')</span></label>';}box.innerHTML=h;}
 function toggleMonth(m,on){if(on)selectedMonths.add(m);else selectedMonths.delete(m);applyFilters();if(typeof currentChart!=="undefined"&&currentChart==="all-overview")renderChart("all-overview");}
 function setAllMonths(all){selectedMonths=new Set();if(all){for(let i=1;i<=12;i++)selectedMonths.add(String(i).padStart(2,"0"));}renderMonthChecks();applyFilters();if(typeof currentChart!=="undefined"&&currentChart==="all-overview")renderChart("all-overview");}
 
-/* deklarasi selectedYears dipindah ke baris atas */
+let selectedYears=new Set();
 function yearCounts(){const src=(typeof getBaseDataset==="function")?getBaseDataset():REAL_DATA;const c={};src.forEach(r=>{const y=r.tanggal.slice(0,4);c[y]=(c[y]||0)+1;});return c;}
 function renderYearChecks(){const box=document.getElementById("year-checks");if(!box)return;const c=yearCounts();const years=Object.keys(c).sort();if(!selectedYears.size&&box.children.length===0){years.forEach(y=>selectedYears.add(y));}box.innerHTML=years.map(y=>'<label class="flex items-center gap-1 text-[11px] bg-surface-container px-2 py-1 rounded cursor-pointer hover:bg-surface-container-high"><input type="checkbox" '+(selectedYears.has(y)?"checked":"")+' onchange="toggleYear(\''+y+'\',this.checked)" class="rounded bg-surface-container-lowest border-outline-variant/60"><span class="text-on-surface font-bold">'+y+'</span><span class="text-on-surface-variant">('+c[y]+')</span></label>').join("");}
 function toggleYear(y,on){if(on)selectedYears.add(y);else selectedYears.delete(y);applyFilters();if(typeof currentChart!=="undefined"&&currentChart==="all-overview")renderChart("all-overview");}
@@ -102,5 +101,4 @@ function buildOverview(){const src=((typeof getBaseDataset==="function")?getBase
 selectedYears=new Set(Object.keys(yearCounts()));
 refreshAllScenarios();
 document.addEventListener("DOMContentLoaded",function(){renderYearChecks();renderMonthChecks();applyFilters();if(typeof currentChart!=="undefined"&&currentChart==="all-overview")renderChart("all-overview");});
-
 
