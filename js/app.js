@@ -79,3 +79,6 @@ function initStats(){const d=REAL_DATA;const latest=d[d.length-1];const maxElv=d
 function startClock(){const f=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});const tick=()=>{const o={};f.formatToParts(new Date()).forEach(p=>{o[p.type]=p.value;});$("live-clock").textContent=o.year+"-"+o.month+"-"+o.day+" "+o.hour+":"+o.minute+":"+o.second+" WIB";};tick();setInterval(tick,1000);}
 document.addEventListener("DOMContentLoaded",function(){initStats();applyFilters();setDatasetFilter("flood-jul2025");setDryDamPhase(1);startClock();});
 
+
+function buildOverview(){const src=(typeof getBaseDataset==="function")?getBaseDataset():REAL_DATA;const by={};src.forEach(r=>{if(r==null||r.elevasi==null)return;const k=r.tanggal.slice(0,7);if(!by[k]||r.elevasi>by[k].elevasi)by[k]=r;});const keys=Object.keys(by).sort();return {labels:keys.map(k=>MONTHS[+k.slice(5,7)-1]+" "+k.slice(0,4)),elevations:keys.map(k=>by[k].elevasi),volumes:keys.map(k=>by[k].vol),inflows:keys.map(k=>by[k].qin),outflows:keys.map(k=>by[k].qout_total),sedimen:keys.map(k=>by[k].sedimen==null?0:by[k].sedimen),summary:"Puncak elevasi per bulan - dihitung otomatis dari seluruh rekaman NERACA + live",qNull:false};}
+CHART_SCENARIOS["all-overview"]=buildOverview();
