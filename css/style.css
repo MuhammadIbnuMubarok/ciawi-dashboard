@@ -8,3 +8,30 @@ body{background-image:radial-gradient(rgba(6,182,212,.055) 1px,transparent 1px);
 .inflow-arrow{animation:flowX 1.6s linear infinite}
 @keyframes flowX{0%{transform:translateX(0);opacity:.4}50%{opacity:1}100%{transform:translateX(26px);opacity:0}}
 .phase-btn.active,.chart-filter-btn.active,.tbl-filter.active,.int-btn.active{background:#06b6d4;color:#00424f;font-weight:700}
+/* v2.12: KPI mengecil, strip LIVE membesar sebagai bintang utama */
+#kpi-elv,#kpi-vol,#kpi-qout,#kpi-qin{font-size:1.45rem !important;line-height:1.15 !important;}
+div:has(> #kpi-elv),div:has(> #kpi-vol),div:has(> #kpi-qout),div:has(> #kpi-qin){padding:.7rem .9rem !important;}
+#kpi-elv-sub,#kpi-vol-sub,#kpi-qout-sub,#kpi-qin-sub{font-size:.58rem !important;}
+#kpi-elv-sub,#kpi-vol-sub,#kpi-qout-sub,#kpi-qin-sub{letter-spacing:.02em;}
+#live-strip{font-size:1.05rem !important;border:1px solid rgba(76,215,246,.55) !important;box-shadow:0 0 22px rgba(76,215,246,.18);border-radius:.75rem;}
+#live-in-jam,#live-in-tma,#live-in-q,#live-out-jam,#live-out-tma,#live-out-q,#live-elv,#live-vol,#live-qout,#live-red{font-size:1.35rem !important;}
+#live-strip b{font-size:1.05rem !important;}
+#live-badge{font-size:.78rem !important;padding:4px 12px !important;}
+#live-saved,#live-update-time{font-size:.95rem !important;} #live-status{font-size:.9rem !important;padding:3px 10px !important;}
+#kpi-elv,#kpi-vol,#kpi-qout,#kpi-qin{font-size:1.05rem !important;}
+div:has(> #kpi-elv),div:has(> #kpi-vol),div:has(> #kpi-qout),div:has(> #kpi-qin){padding:.45rem .7rem !important;}
+#kpi-elv-sub,#kpi-vol-sub,#kpi-qout-sub,#kpi-qin-sub{font-size:.5rem !important;}
+div:has(> #kpi-elv) h3,div:has(> #kpi-vol) h3,div:has(> #kpi-qout) h3,div:has(> #kpi-qin) h3{font-size:.55rem !important;}
+#live-strip{font-size:1.25rem !important;}
+#live-in-jam,#live-in-tma,#live-in-q,#live-out-jam,#live-out-tma,#live-out-q,#live-elv,#live-vol,#live-qout,#live-red{font-size:1.8rem !important;}
+#live-strip b{font-size:1.3rem !important;}
+#live-badge{font-size:.95rem !important;}
+#live-saved,#live-update-time{font-size:1.05rem !important;}
+#live-in-jam,#live-in-tma,#live-in-q,#live-out-jam,#live-out-tma,#live-out-q{font-size:2.3rem !important;}
+div:has(> #live-in-tma),div:has(> #live-out-tma){font-size:1.7rem !important;padding:.9rem 1.4rem !important;}
+div:has(> #live-in-tma) b,div:has(> #live-out-tma) b{font-size:1.7rem !important;}
+#dry-dam-svg text{font-size:15px !important;}
+#dry-dam-svg #wl-live-line{stroke-width:3 !important;} #dry-dam-svg #water-level-line{stroke-width:2 !important;}
+#dry-dam-svg #dam-inflow path{stroke-width:8 !important;}
+#dry-dam-svg #flow-particles circle{r:4;}
+#dry-dam-svg text{font-size:18px !important;}
