@@ -23,7 +23,7 @@
 <button class="nav-item text-xs px-3 py-1.5 text-on-surface-variant hover:text-on-surface transition-all rounded" onclick="handleNavClick(this,'section-neraca')">Neraca Air & Reduksi</button>
 <button class="nav-item text-xs px-3 py-1.5 text-on-surface-variant hover:text-on-surface transition-all rounded" onclick="handleNavClick(this,'section-teknis')">Data Teknis & Operasional</button>
 </nav>
-<div class="flex items-center gap-3"><div class="hidden md:flex flex-col items-end text-[10px] text-on-surface-variant leading-tight"><span>WAKTU SERVER (WIB)</span><span class="text-secondary font-mono text-xs" id="live-clock">—</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary-container text-[18px]">person</span></div></div>
+<div class="flex items-center gap-3"><div class="hidden md:flex flex-col items-end text-[10px] text-on-surface-variant leading-tight"><span>WAKTU SERVER (WIB)</span><span class="text-secondary font-mono text-xs" id="live-clock">—</span></div><button id="theme-toggle" onclick="toggleTheme()" class="w-8 h-8 rounded bg-surface-container-high border border-primary/20 flex items-center justify-center text-primary" title="Ganti mode terang/gelap"><span class="material-symbols-outlined text-[18px]" id="theme-icon">dark_mode</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary-container text-[18px]">person</span></div></div>
 </div>
 </header>
 <main class="pt-20 px-6 flex flex-col gap-6" id="dashboard-top">
@@ -129,7 +129,7 @@
 <button class="flex items-center gap-1.5 bg-primary-container text-on-primary-container px-3.5 py-1.5 rounded hover:brightness-110 text-xs font-bold transition-all shadow-sm active:scale-95" onclick="downloadFilteredData()"><span class="material-symbols-outlined text-[16px]">file_download</span>UNDUH DATA TERPILIH</button>
 <button class="flex items-center gap-1 bg-surface-container px-3 py-1.5 rounded hover:bg-surface-container-high text-on-surface text-xs font-bold transition-all border border-outline-variant/40" onclick="toggleTablePanel()"><span class="material-symbols-outlined text-[18px] transition-transform duration-300" id="btn-toggle-table-icon">expand_less</span><span id="btn-toggle-table-text">MINIMIZE</span></button></div></div>
 <div id="table-body-wrapper" class="flex flex-col gap-4">
-<div class="flex flex-wrap items-center gap-3 text-xs"><div class="flex items-center bg-surface-container-low p-1 rounded gap-1 border border-outline-variant/30"><button class="int-btn active text-xs px-2.5 py-1 rounded" id="int-1h" onclick="setIntervalSampling('1h')">1H</button><button class="int-btn text-xs px-2.5 py-1 rounded text-on-surface-variant hover:bg-surface-container" id="int-6h" onclick="setIntervalSampling('6h')">6H</button><button class="int-btn text-xs px-2.5 py-1 rounded text-on-surface-variant hover:bg-surface-container" id="int-24h" onclick="setIntervalSampling('24h')">24H</button><button class="int-btn text-xs px-2.5 py-1 rounded text-on-surface-variant hover:bg-surface-container" id="int-7d" onclick="setIntervalSampling('7d')">7D</button></div>
+<div class="flex items-center bg-surface-container-low p-1 rounded gap-1 border border-outline-variant/30"><button class="int-btn text-xs px-2.5 py-1 rounded text-on-surface-variant hover:bg-surface-container" id="int-5m" onclick="setIntervalSampling('5m')">5M</button><button class="int-btn text-xs px-2.5 py-1 rounded text-on-surface-variant hover:bg-surface-container" id="int-15m" onclick="setIntervalSampling('15m')">15M</button><button class="int-btn text-xs px-2.5 py-1 rounded text-on-surface-variant hover:bg-surface-container" id="int-30m" onclick="setIntervalSampling('30m')">30M</button><button class="int-btn active text-xs px-2.5 py-1 rounded" id="int-1h" onclick="setIntervalSampling('1h')">1H</button><button class="int-btn text-xs px-2.5 py-1 rounded text-on-surface-variant hover:bg-surface-container" id="int-6h" onclick="setIntervalSampling('6h')">6H</button><button class="int-btn text-xs px-2.5 py-1 rounded text-on-surface-variant hover:bg-surface-container" id="int-24h" onclick="setIntervalSampling('24h')">24H</button><button class="int-btn text-xs px-2.5 py-1 rounded text-on-surface-variant hover:bg-surface-container" id="int-7d" onclick="setIntervalSampling('7d')">7D</button></div>
 <div class="flex items-center gap-1 text-xs"><span class="text-on-surface-variant">Dari:</span><input class="bg-surface-container-lowest text-on-surface font-mono text-xs px-2 py-1 rounded border border-outline-variant/60 focus:border-primary focus:outline-none" id="date-range-start" type="date" value="2024-12-01" onchange="applyFilters()"></div>
 <div class="flex items-center gap-1 text-xs"><span class="text-on-surface-variant">S/D:</span><input class="bg-surface-container-lowest text-on-surface font-mono text-xs px-2 py-1 rounded border border-outline-variant/60 focus:border-primary focus:outline-none" id="date-range-end" type="date" value="2026-07-31" onchange="applyFilters()"></div>
 <button class="text-xs text-on-surface-variant hover:text-primary underline" onclick="resetDateRangeFilter()">Reset Rentang</button></div>
@@ -149,6 +149,10 @@
 <script src="js/live-service.js"></script>
 </body>
 </html>
+
+
+
+
 
 
 
