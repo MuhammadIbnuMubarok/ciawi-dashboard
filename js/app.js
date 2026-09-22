@@ -110,12 +110,13 @@ document.addEventListener("DOMContentLoaded",function(){renderYearChecks();rende
 
 
 function onFilterChange(){refreshAllScenarios();applyFilters();updateTrendLabel();setDatasetFilter("all-overview");}
-function updateTrendLabel(){const allY=Object.keys(yearCounts());const ys=[...selectedYears].sort();const ms=[...selectedMonths].sort();let t=(ys.length===0?"BELUM ADA PILIHAN":ys.length===allY.length?"TREN MULTI-TAHUN":(ys.length===1?"TAHUN "+ys[0]:"TREN "+ys.join(", "));if(ms.length&&ms.length<12){t+=" • "+(ms.length<=3?ms.map(m=>MONTHS[+m-1]).join(", "):ms.length+" BULAN");}const b=document.getElementById("filter-all-overview");if(b)b.textContent=t;}
+function updateTrendLabel(){const allY=Object.keys(yearCounts());const ys=[...selectedYears].sort();const ms=[...selectedMonths].sort();let t=(ys.length===0?"BELUM ADA PILIHAN":(ys.length===allY.length?"TREN MULTI-TAHUN":(ys.length===1?"TAHUN "+ys[0]:"TREN "+ys.join(", "))));if(ms.length&&ms.length<12){t+=" • "+(ms.length<=3?ms.map(m=>MONTHS[+m-1]).join(", "):ms.length+" BULAN");}const b=document.getElementById("filter-all-overview");if(b)b.textContent=t;}
 function toggleYear(y,on){on?selectedYears.add(y):selectedYears.delete(y);onFilterChange();renderYearChecks();}
 function toggleMonth(m,on){on?selectedMonths.add(m):selectedMonths.delete(m);onFilterChange();renderMonthChecks();}
 function setAllYears(all){selectedYears=new Set(all?Object.keys(yearCounts()):[]);onFilterChange();renderYearChecks();}
 function setAllMonths(all){selectedMonths=new Set();if(all){for(let i=1;i<=12;i++)selectedMonths.add(String(i).padStart(2,"0"));}onFilterChange();renderMonthChecks();}
 document.addEventListener("DOMContentLoaded",function(){updateTrendLabel();});
+
 
 
 
