@@ -54,7 +54,7 @@ const PHASES={
 };
 function statusBadge(s){if(s==null)return '<span class="px-2 py-0.5 rounded border border-outline-variant/40 text-on-surface-variant text-[10px]">TIDAK TERCATAT</span>';const c={"Normal":"siaga-normal","Siaga IV":"siaga-4","Siaga III":"siaga-3","Siaga II":"siaga-2","Siaga I":"siaga-1","Flushing":"secondary"}[s]||"on-surface-variant";return '<span class="px-2 py-0.5 rounded border border-'+c+'/40 bg-'+c+'/10 text-'+c+' text-[10px] font-bold">'+s.toUpperCase()+'</span>';}
 function qbar(v,mx,c){return '<div class="flex-1 '+c+' rounded-t" style="height:'+Math.max(2,v==null?3:(v/mx)*100)+'%" title="'+(v==null?"tidak terekam":fmt2(v))+'"></div>';}
-function applyFilters(){const q=$("table-search").value.trim().toLowerCase();const ds=$("date-range-start").value,de=$("date-range-end").value;let d=getBaseDataset().filter(r=>{if(selectedYears&&!selectedYears.has(r.tanggal.slice(0,4)))return false;if(selectedMonths&&!selectedMonths.has(r.tanggal.slice(5,7)))return false;if(ds&&r.tanggal<ds)return false;if(de&&r.tanggal>de)return false;if(currentPreset==="siaga"&&!(r.status&&r.status.indexOf("Siaga")===0))return false;if(currentPreset==="flushing"&&!((r.status==="Flushing")||(r.sedimen!=null&&r.sedimen<=1.0)))return false;if(q){const hay=(r.no+" "+r.tanggal+" "+r.jam+" "+r.elevasi+" "+(r.status||"")).toLowerCase();if(hay.indexOf(q)===-1)return false;}return true;});const step={"1h":1,"6h":6,"24h":24,"7d":168}[currentInterval]||1;if(step>1)d=d.filter((_,i)=>i%step===0);d.sort((a,b)=>((a.tanggal+"T"+a.jam)<(b.tanggal+"T"+b.jam)?1:-1));workingDataset=d;currentPage=1;renderTable();}
+function applyFilters(){const q=$("table-search").value.trim().toLowerCase();const ds=$("date-range-start").value,de=$("date-range-end").value;let d=getBaseDataset().filter(r=>{if(selectedYears.size&&!selectedYears.has(r.tanggal.slice(0,4)))return false;if(selectedMonths.size&&!selectedMonths.has(r.tanggal.slice(5,7)))return false;if(ds&&r.tanggal<ds)return false;if(de&&r.tanggal>de)return false;if(currentPreset==="siaga"&&!(r.status&&r.status.indexOf("Siaga")===0))return false;if(currentPreset==="flushing"&&!((r.status==="Flushing")||(r.sedimen!=null&&r.sedimen<=1.0)))return false;if(q){const hay=(r.no+" "+r.tanggal+" "+r.jam+" "+r.elevasi+" "+(r.status||"")).toLowerCase();if(hay.indexOf(q)===-1)return false;}return true;});const step={"1h":1,"6h":6,"24h":24,"7d":168}[currentInterval]||1;if(step>1)d=d.filter((_,i)=>i%step===0);d.sort((a,b)=>((a.tanggal+"T"+a.jam)<(b.tanggal+"T"+b.jam)?1:-1));workingDataset=d;currentPage=1;renderTable();}
 function filterTableBySearch(){applyFilters();}
 function filterTablePreset(p){currentPreset=p;["all","siaga","flushing"].forEach(k=>$("tbl-btn-"+k).classList.toggle("active",k===p));applyFilters();}
 function setIntervalSampling(v){currentInterval=v;["1h","6h","24h","7d"].forEach(k=>$("int-"+k).classList.toggle("active",k===v));applyFilters();}
@@ -107,3 +107,12 @@ document.addEventListener("DOMContentLoaded",function(){renderYearChecks();rende
 
 
 
+
+
+function onFilterChange(){applyFilters();updateTrendLabel();setDatasetFilter("all-overview");}
+function updateTrendLabel(){const allY=Object.keys(yearCounts());const ys=[...selectedYears].sort();const ms=[...selectedMonths].sort();let t=(ys.length===0||ys.length===allY.length)?"TREN MULTI-TAHUN":(ys.length===1?"TAHUN "+ys[0]:"TREN "+ys.join(", "));if(ms.length&&ms.length<12){t+=" • "+(ms.length<=3?ms.map(m=>MONTHS[+m-1]).join(", "):ms.length+" BULAN");}const b=document.getElementById("filter-all-overview");if(b)b.textContent=t;}
+function toggleYear(y,on){on?selectedYears.add(y):selectedYears.delete(y);onFilterChange();renderYearChecks();}
+function toggleMonth(m,on){on?selectedMonths.add(m):selectedMonths.delete(m);onFilterChange();renderMonthChecks();}
+function setAllYears(all){selectedYears=new Set(all?Object.keys(yearCounts()):[]);onFilterChange();renderYearChecks();}
+function setAllMonths(all){selectedMonths=new Set();if(all){for(let i=1;i<=12;i++)selectedMonths.add(String(i).padStart(2,"0"));}onFilterChange();renderMonthChecks();}
+document.addEventListener("DOMContentLoaded",function(){updateTrendLabel();});
