@@ -42,3 +42,6 @@ html.light [class*="text-on-surface"]{color:#101828 !important;} html.light [cla
 html.light [class*="border-surface-container"],html.light [class*="border-outline-variant"],html.light [class*="divide-surface-container"]{border-color:#c3cedd !important;}
 html.light [class*="text-primary"]{color:#0e7490 !important;} html.light [class*="text-secondary"]{color:#1d4ed8 !important;}
 html.light ::-webkit-scrollbar-track{background:#e3e9f2;} html.light ::-webkit-scrollbar-thumb{background:#94a3b8;} html.light .glow-panel{box-shadow:0 8px 32px rgba(30,60,90,.10);}
+@keyframes alarmBlink{0%,100%{opacity:1}50%{opacity:.22}}
+#alarm-banner{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:9998;display:none;align-items:center;gap:12px;padding:9px 16px;border-radius:10px;border:2px solid;background:rgba(11,19,38,.94);font-weight:800;font-size:13px;letter-spacing:.05em;box-shadow:0 10px 34px rgba(0,0,0,.55);}
+#alarm-panel{position:fixed;right:12px;bottom:12px;z-index:9998;display:flex;gap:6px;} #alarm-panel button{background:rgba(11,19,38,.9);border:1px solid rgba(76,215,246,.4);color:#e6edf7;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;}
