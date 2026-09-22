@@ -220,3 +220,4 @@ document.addEventListener("DOMContentLoaded",function(){const n=(typeof REAL_DAT
 let proxyState="on";const _cw=console.warn;console.warn=function(){const s=Array.prototype.join.call(arguments," ");if(s.indexOf("Live telemetry offline")===0&&proxyState!=="off"){proxyState="off";toast("Proxy/telemetri putus - dashboard mode offline","error");}_cw.apply(console,arguments);};
 const _udlT=updateDamLive;updateDamLive=function(r){_udlT(r);if(proxyState==="off"){proxyState="on";toast("Telemetri LIVE pulih - data mengalir kembali","success");}};
 
+function trendSvg(){if(window.__tsvg2&&document.contains(window.__tsvg2))return window.__tsvg2;let best=null,bn=0;document.querySelectorAll("svg").forEach(function(sv){if(sv.querySelector("[id^=dam-],#wl-live-line,#tma-out-label"))return;const c=sv.querySelectorAll("circle").length;if(c>bn){bn=c;best=sv;}});window.__tsvg2=best;return best;}
