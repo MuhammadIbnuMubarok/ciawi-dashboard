@@ -1,6 +1,6 @@
 ﻿/* LIVE SERVICE - TMA realtime dari sdatelemetry.com/fmsciawi (khusus inlet & outlet Bendungan Ciawi) */
 const LIVE_SOURCE="https://bbwscc.sdatelemetry.com/data/gettelem.php?mod=rt";
-const LIVE_PROXIES=["http://localhost:8080/?url="];
+const LIVE_PROXIES=["/api/live?url=","/live?url="];
 const LIVE_TARGETS=["INLET BENDUNGAN CIAWI","OUTLET BENDUNGAN CIAWI"];
 let liveTimer=null;let liveLastTs=null;
 function liveNorm(s){return (s||"").replace(/\s+/g," ").trim().toUpperCase();}
@@ -13,6 +13,7 @@ function renderLive(data){const map={"INLET BENDUNGAN CIAWI":"inlet","OUTLET BEN
 async function refreshLiveNow(){setLiveBadge("loading");try{const html=await fetchLiveHtml();const data=parseLiveTable(html);if(!data||Object.keys(data).length===0)throw new Error("Tabel tidak ditemukan");const tIn=parseFloat((data["INLET BENDUNGAN CIAWI"]||{}).tma);const tOut=parseFloat((data["OUTLET BENDUNGAN CIAWI"]||{}).tma);if(!isNaN(tIn)&&!isNaN(tOut)&&typeof computeLiveNeraca==="function"){const now=Date.now();const dt=liveLastTs?((now-liveLastTs)/1000):0;liveLastTs=now;const lr=computeLiveNeraca(tIn,tOut,dt);if(typeof appendLiveRecord==="function"){appendLiveRecord(lr,tIn,tOut);}renderLiveNeraca(lr);if(typeof updateDamLive==="function")updateDamLive(lr);if(typeof applyFilters==="function"){applyFilters();}}if(typeof refreshAllScenarios==="function"){refreshAllScenarios();if(typeof currentChart!=="undefined"&&currentChart==="all-overview"&&typeof renderChart==="function"){renderChart("all-overview");}}renderLive(data);}catch(e){console.warn("Live telemetry offline: "+e.message);setLiveBadge("offline");}}
 function startLivePolling(ms){refreshLiveNow();if(liveTimer)clearInterval(liveTimer);liveTimer=setInterval(refreshLiveNow,ms||60000);}
 document.addEventListener("DOMContentLoaded",function(){startLivePolling(60000);});
+
 
 
 
