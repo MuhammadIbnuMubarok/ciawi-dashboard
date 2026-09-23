@@ -1,1 +1,3 @@
 backup-v24/
+node_modules/
+*.bak
