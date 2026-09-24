@@ -2,7 +2,7 @@
 (function () {
   if (window.NotifCiawi) return;
   var CONFIG = {
-    SUMBER_DATA: '/api/live',            // SESUAIKAN bila endpoint live-mu berbeda
+    SUMBER_DATA: '/api/fleet',            // SESUAIKAN bila endpoint live-mu berbeda
     INTERVAL_DETIK: 60,
     ICON: '/icon-192.png',
     PATOKAN: { IV: 0.64, III: 1.86, II: 2.55, I: 3.48 },

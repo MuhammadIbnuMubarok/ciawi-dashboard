@@ -68,7 +68,7 @@ async function aksiTMA(chatId, BASE) {
   else await send(chatId, '⚠️ Gagal kirim update: ' + JSON.stringify(j).slice(0, 200));
 }
 async function aksiSiaga(chatId, BASE) {
-  const d = await dataLive(process.env.LIVE_URL || (BASE + '/api/live'));
+  const d = await dataLive(process.env.LIVE_URL || (BASE + '/api/fleet'));
   if (!d) { await send(chatId, '⚠️ Data live tidak terbaca server. Pakai 📊 Update TMA untuk laporan lengkap.', IK_AKSI); return; }
   const f = tmaOutlet(d);
   const st = cari(d, ['status', 'level']);
