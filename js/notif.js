@@ -142,23 +142,26 @@
     if (xy && typeof xy.x === 'number' && typeof xy.y === 'number') { pill.style.left = xy.x + 'px'; pill.style.top = xy.y + 'px'; }
     else { pill.classList.add('pos-' + (localStorage.getItem('ciawiNotifPos') || CONFIG.POSISI || 'kiri-bawah')); }
     var drag = null, dragMoved = 0;
-    pill.addEventListener('pointerdown', function (ev) {
-      if (ev.target.closest('button') && ev.target.id !== 'ciawiNotifMin') return;
-      drag = { sx: ev.clientX, sy: ev.clientY, dx: ev.clientX - pill.offsetLeft, dy: ev.clientY - pill.offsetTop };
-      dragMoved = 0;
-      try { pill.setPointerCapture(ev.pointerId); } catch (e) {}
-    });
-    pill.addEventListener('pointermove', function (ev) {
+    function dragMove(ev) {
       if (!drag) return;
       if (Math.abs(ev.clientX - drag.sx) + Math.abs(ev.clientY - drag.sy) > 6) dragMoved = 1;
       var x = Math.min(Math.max(4, ev.clientX - drag.dx), window.innerWidth - pill.offsetWidth - 4);
       var y = Math.min(Math.max(4, ev.clientY - drag.dy), window.innerHeight - pill.offsetHeight - 4);
       pill.style.left = x + 'px'; pill.style.top = y + 'px';
-    });
-    pill.addEventListener('pointerup', function () {
+    }
+    function dragUp() {
       if (!drag) return;
       drag = null;
+      document.removeEventListener('pointermove', dragMove);
+      document.removeEventListener('pointerup', dragUp);
       if (dragMoved) localStorage.setItem('ciawiNotifXY', JSON.stringify({ x: pill.offsetLeft, y: pill.offsetTop }));
+    }
+    pill.addEventListener('pointerdown', function (ev) {
+      if (ev.target.closest('button') && ev.target.id !== 'ciawiNotifMin') return;
+      drag = { sx: ev.clientX, sy: ev.clientY, dx: ev.clientX - pill.offsetLeft, dy: ev.clientY - pill.offsetTop };
+      dragMoved = 0;
+      document.addEventListener('pointermove', dragMove);
+      document.addEventListener('pointerup', dragUp);
     });
     var bMin = document.getElementById('ciawiNotifMin'); bMin.addEventListener('click', function () { if (dragMoved) { dragMoved = 0; return; } setMin(!isMin()); }); setMin(localStorage.getItem('ciawiNotifMin') === '1');
     segarkanStatus();
