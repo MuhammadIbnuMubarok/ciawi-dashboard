@@ -25,7 +25,7 @@ module.exports = async (req, res) => {
     const found = await list({ prefix: key });
     if (found.blobs && found.blobs.length) {
       const b = await get(key, { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
-      prev = b ? await b.text() : "";
+      const __rp = b ? await fetch(b.downloadUrl || b.url) : null; prev = __rp && __rp.ok ? await __rp.text() : "";
     }
     if (prev.indexOf('"ts":"' + ts + '"') >= 0) { res.json({ ok: true, dup: true, lines: prev.trim().split("\n").length }); return; }
     const body = prev + picks.map(p => JSON.stringify(p)).join("\n") + "\n";
@@ -33,6 +33,7 @@ module.exports = async (req, res) => {
     res.json({ ok: true, lines: body.trim().split("\n").length, ts: ts });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
+
 
 
 
