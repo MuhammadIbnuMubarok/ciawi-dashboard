@@ -4,7 +4,7 @@ function fmt2(x){ return (Math.round(x * 100) / 100).toFixed(2); }
 module.exports = async (req, res) => {
   try {
     const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-    const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+    const q0 = req.query || {}; const CHAT_ID = q0.chat || process.env.TELEGRAM_CHAT_ID;
     if (!TOKEN || !CHAT_ID) { res.status(500).json({ error: "TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID belum di-env" }); return; }
     const q = req.query || {};
     const time = String(q.time || "");
@@ -42,3 +42,4 @@ module.exports = async (req, res) => {
     res.json({ ok: true, message_id: jr.result && jr.result.message_id, text: text });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
+
