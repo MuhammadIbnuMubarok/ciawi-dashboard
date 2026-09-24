@@ -12,7 +12,7 @@ module.exports = async (req, res) => {
       const key = "history/" + day + ".jsonl";
       const f = await list({ prefix: key });
       if (f.blobs && f.blobs.length) {
-        const b = await get(key);
+        const b = await get(key, { token: process.env.BLOB_READ_WRITE_TOKEN });
         const txt = await b.text();
         txt.split("\n").forEach(l => { if (l.trim()) out.push(JSON.parse(l)); });
       }
@@ -21,3 +21,4 @@ module.exports = async (req, res) => {
     res.json({ count: out.length, rows: out });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
+

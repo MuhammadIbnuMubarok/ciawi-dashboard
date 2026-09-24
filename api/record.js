@@ -24,7 +24,7 @@ module.exports = async (req, res) => {
     let prev = "";
     const found = await list({ prefix: key });
     if (found.blobs && found.blobs.length) {
-      const b = await get(key);
+      const b = await get(key, { token: process.env.BLOB_READ_WRITE_TOKEN });
       prev = b ? await b.text() : "";
     }
     if (prev.indexOf('"ts":"' + ts + '"') >= 0) { res.json({ ok: true, dup: true, lines: prev.trim().split("\n").length }); return; }
@@ -33,4 +33,5 @@ module.exports = async (req, res) => {
     res.json({ ok: true, lines: body.trim().split("\n").length, ts: ts });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
+
 
