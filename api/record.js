@@ -24,15 +24,16 @@ module.exports = async (req, res) => {
     let prev = "";
     const found = await list({ prefix: key });
     if (found.blobs && found.blobs.length) {
-      const b = await fetch(found.blobs[0].url, { headers: { authorization: "Bearer " + process.env.BLOB_READ_WRITE_TOKEN } });
+      const b = await get(key, { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
       prev = b ? await b.text() : "";
     }
     if (prev.indexOf('"ts":"' + ts + '"') >= 0) { res.json({ ok: true, dup: true, lines: prev.trim().split("\n").length }); return; }
     const body = prev + picks.map(p => JSON.stringify(p)).join("\n") + "\n";
-    await put(key, body, { contentType: "text/plain", access: "private" });
+    await put(key, body, { contentType: "text/plain", access: "private", allowOverwrite: true });
     res.json({ ok: true, lines: body.trim().split("\n").length, ts: ts });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
+
 
 
 
