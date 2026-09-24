@@ -29,7 +29,8 @@ module.exports = async (req, res) => {
     }
     if (prev.indexOf('"ts":"' + ts + '"') >= 0) { res.json({ ok: true, dup: true, lines: prev.trim().split("\n").length }); return; }
     const body = prev + picks.map(p => JSON.stringify(p)).join("\n") + "\n";
-    await put(key, body, { contentType: "text/plain" });
+    await put(key, body, { contentType: "text/plain", access: "private" });
     res.json({ ok: true, lines: body.trim().split("\n").length, ts: ts });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
+
