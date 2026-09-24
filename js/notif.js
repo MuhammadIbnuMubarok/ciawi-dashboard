@@ -55,7 +55,7 @@
   }
   function tmaOutlet(d) {
     if (!d || typeof d !== 'object') return NaN;
-    var v = cariCombo(d, ['tma'], ['outlet'], 0);
+    var v = cariCombo(d, ['tma'], ['out'], 0);
     if (v !== undefined) return Number(v);
     var o = cari(d, ['outlet'], 0);
     if (o && typeof o === 'object') { var t = cari(o, ['tma'], 0); if (t !== undefined) return Number(t); }
