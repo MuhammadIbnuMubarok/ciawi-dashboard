@@ -1,0 +1,11 @@
+﻿name: record-ciawi
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: trigger recorder
+        run: curl -sS --max-time 60 https://ciawi-dashboard.vercel.app/api/record
