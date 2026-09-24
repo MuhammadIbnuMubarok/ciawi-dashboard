@@ -222,3 +222,30 @@ const _udlT=updateDamLive;updateDamLive=function(r){_udlT(r);if(proxyState==="of
 
 function trendSvg(){if(window.__tsvg2&&document.contains(window.__tsvg2))return window.__tsvg2;let best=null,bn=0;document.querySelectorAll("svg").forEach(function(sv){if(sv.querySelector("[id^=dam-],#wl-live-line,#tma-out-label"))return;const c=sv.querySelectorAll("circle").length;if(c>bn){bn=c;best=sv;}});window.__tsvg2=best;return best;}
 
+
+// --- ekspor agregat per jam (patch 2026-09-24) ---
+function exportHourlyCSV(filename){
+  const src = workingDataset || [];
+  if (!src.length) { alert("Tidak ada data pada rentang aktif untuk diagregasi per jam."); return; }
+  const buckets = new Map();
+  src.forEach(r => {
+    const k = (r.tanggal || "") + " " + String(r.jam || "00:00").slice(0, 2);
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(r);
+  });
+  const num = v => { if (v == null || v === "" || v === "-") return null; const x = parseFloat(String(v).replace(",", ".")); return Number.isFinite(x) ? x : null; };
+  const agg = [...buckets.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map((e, idx) => {
+    const g = e[1];
+    const out = { no: idx + 1, tanggal: e[0].slice(0, 10), jam: e[0].slice(11, 13) + ":00" };
+    Object.keys(g[0]).forEach(key => {
+      if (key === "no" || key === "tanggal" || key === "jam") return;
+      const vals = g.map(r => num(r[key])).filter(x => x !== null);
+      if (vals.length) { out[key] = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100; }
+      else { out[key] = g[0][key]; }
+    });
+    return out;
+  });
+  const old = workingDataset;
+  workingDataset = agg;
+  try { exportTableToCsv(filename || "neraca_per_jam.csv"); } finally { workingDataset = old; }
+}
