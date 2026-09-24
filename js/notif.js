@@ -5,7 +5,8 @@
     SUMBER_DATA: '/api/live',            // SESUAIKAN bila endpoint live-mu berbeda
     INTERVAL_DETIK: 60,
     ICON: '/icon-192.png',
-    PATOKAN: { IV: 0.64, III: 1.86, II: 2.55, I: 3.48 }
+    PATOKAN: { IV: 0.64, III: 1.86, II: 2.55, I: 3.48 },
+    POSISI: 'kiri-bawah'
   };
   var ROMAWI = { '1':'I','2':'II','3':'III','4':'IV','i':'I','ii':'II','iii':'III','iv':'IV' };
   var KEY_PREF = 'ciawiNotifPref';
@@ -125,16 +126,20 @@
     if (r.statusStr) lastStatus = r.statusStr.toLowerCase();
   }
 
+  function isMin() { var p = document.getElementById('ciawiNotifPill'); return !!p && p.classList.contains('min'); }
+  function setMin(v) { var p = document.getElementById('ciawiNotifPill'); if (!p) return; p.classList.toggle('min', v); localStorage.setItem('ciawiNotifMin', v ? '1' : '0'); var b = document.getElementById('ciawiNotifMin'); if (b) { b.textContent = v ? '🔔' : '—'; b.title = v ? 'Buka panel notifikasi' : 'Kecilkan'; } }
   function gambarUI() {
     if (document.getElementById('ciawiNotifPill')) return;
     var st = document.createElement('style');
-    st.textContent = '#ciawiNotifPill{position:fixed;right:16px;bottom:16px;z-index:99999;display:flex;align-items:center;gap:8px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;padding:8px 12px;border-radius:999px;font:12px/1.2 system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35)}#ciawiNotifBtn{cursor:pointer;background:#1d4ed8;border:0;color:#fff;border-radius:999px;padding:6px 10px;font-size:12px}';
+    st.textContent = '#ciawiNotifPill{position:fixed;z-index:99999;display:flex;align-items:center;gap:8px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;padding:8px 12px;border-radius:999px;font:12px/1.2 system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35)}#ciawiNotifPill.pos-kiri-bawah{left:16px;bottom:16px}#ciawiNotifPill.pos-kanan-bawah{right:16px;bottom:16px}#ciawiNotifPill.pos-kiri-atas{left:16px;top:16px}#ciawiNotifPill.pos-kanan-atas{right:16px;top:16px}#ciawiNotifPill.min{padding:0;border:0;background:transparent;box-shadow:none}#ciawiNotifPill.min #ciawiNotifStatus,#ciawiNotifPill.min #ciawiNotifBtn,#ciawiNotifPill.min #ciawiSireneBtn{display:none}#ciawiNotifMin{cursor:pointer;background:#334155;border:0;color:#fff;border-radius:999px;padding:6px 10px;font-size:12px}#ciawiNotifPill.min #ciawiNotifMin{background:#1d4ed8;padding:10px 12px;font-size:16px;box-shadow:0 4px 14px rgba(0,0,0,.35)}#ciawiNotifBtn{cursor:pointer;background:#1d4ed8;border:0;color:#fff;border-radius:999px;padding:6px 10px;font-size:12px}';
     document.head.appendChild(st);
     var pill = document.createElement('div');
     pill.id = 'ciawiNotifPill';
-    pill.innerHTML = '<button id="ciawiNotifBtn" type="button">🔔 Aktifkan</button><span id="ciawiNotifStatus">Notifikasi Nonaktif</span>';
+    pill.innerHTML = '<button id="ciawiNotifBtn" type="button">🔔 Aktifkan</button><span id="ciawiNotifStatus">Notifikasi Nonaktif</span><button id="ciawiNotifMin" type="button" title="Kecilkan">—</button>';
     document.body.appendChild(pill);
     document.getElementById('ciawiNotifBtn').addEventListener('click', toggle);
+    pill.classList.add('pos-' + (localStorage.getItem('ciawiNotifPos') || CONFIG.POSISI || 'kiri-bawah'));
+    var bMin = document.getElementById('ciawiNotifMin'); bMin.addEventListener('click', function () { setMin(!isMin()); }); setMin(localStorage.getItem('ciawiNotifMin') === '1');
     segarkanStatus();
   }
   function segarkanStatus() {
@@ -204,6 +209,8 @@
     },
     ujiTMA: function (f) { evaluasi({ tma_outlet: f }, { uji: true }); },
     levelDariData: levelDariData,
-    config: CONFIG
+    config: CONFIG,
+    pindah: function (pos) { var p = document.getElementById('ciawiNotifPill'); if (!p) return; p.classList.remove('pos-kiri-bawah', 'pos-kanan-bawah', 'pos-kiri-atas', 'pos-kanan-atas'); p.classList.add('pos-' + pos); localStorage.setItem('ciawiNotifPos', pos); },
+    kecilkan: function (v) { setMin(v !== false); }
   };
 })();
