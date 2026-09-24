@@ -19,6 +19,9 @@
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return false;
     try {
+      var gts = Number(localStorage.getItem('ciawiSireneGlobalTS') || 0);
+      if (Date.now() - gts < 2500) return false;
+      localStorage.setItem('ciawiSireneGlobalTS', String(Date.now()));
       unlock();
       if (!ctx || ctx.state !== 'running') return false;
       var t0 = ctx.currentTime, total = durasi || 10, vol = CONFIG.VOLUME;
