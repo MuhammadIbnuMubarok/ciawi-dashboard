@@ -252,3 +252,35 @@ function exportHourlyCSV(filename){
 
 // --- pengutip field CSV RFC-4180 (patch 2026-09-24) ---
 function __csvq(v){return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';}
+
+// --- exportHourlyCSV MANDIRI (v2): agregasi per jam, serializer sendiri + BOM ---
+function exportHourlyCSV(filename){
+  const src = workingDataset || [];
+  if (!src.length) { alert("Tidak ada data pada rentang aktif untuk diagregasi per jam."); return; }
+  const buckets = new Map();
+  src.forEach(r => {
+    const k = (r.tanggal || "") + " " + String(r.jam || "00:00").slice(0, 2);
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(r);
+  });
+  const num = v => { if (v == null || v === "" || v === "-") return null; const x = parseFloat(String(v).replace(",", ".")); return Number.isFinite(x) ? x : null; };
+  const rows = [...buckets.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map((e, idx) => {
+    const g = e[1];
+    const out = { NO: idx + 1, TANGGAL: e[0].slice(0, 10), JAM: e[0].slice(11, 13) + ":00" };
+    Object.keys(g[0]).forEach(key => {
+      if (key === "no" || key === "tanggal" || key === "jam") return;
+      const vals = g.map(r => num(r[key])).filter(x => x !== null);
+      if (vals.length) { out[key.toUpperCase()] = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100; }
+      else { out[key.toUpperCase()] = g[0][key]; }
+    });
+    return out;
+  });
+  const head = Object.keys(rows[0]);
+  const lines = [head.map(__csvq).join(",")].concat(rows.map(r => head.map(h => __csvq(typeof r[h] === "number" ? String(r[h]).replace(".", ",") : r[h])).join(",")));
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename || "neraca_per_jam.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
