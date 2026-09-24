@@ -25,7 +25,7 @@ module.exports = async (req, res) => {
     const found = await list({ prefix: key });
     if (found.blobs && found.blobs.length) {
       const b = await get(key, { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
-      const __rp = b && b.blob ? await fetch(b.blob.downloadUrl) : null; prev = __rp && __rp.ok ? await __rp.text() : "";
+      let __ok = false; if (b) { if (typeof b.text === "function") { prev = await b.text(); __ok = true; } else if (b.blob && typeof b.blob.text === "function") { prev = await b.blob.text(); __ok = true; } else if (b.blob && b.blob.downloadUrl) { const __rp = await fetch(b.blob.downloadUrl); if (__rp.ok) { prev = await __rp.text(); __ok = true; } } } if (!__ok) { res.status(500).json({ error: "baca blob gagal, menolak overwrite", bentuk: b ? Object.keys(b) : null, blobKeys: b && b.blob ? Object.keys(b.blob) : null }); return; }
     }
     if (prev.indexOf('"ts":"' + ts + '"') >= 0) { res.json({ ok: true, dup: true, lines: prev.trim().split("\n").length }); return; }
     const body = prev + picks.map(p => JSON.stringify(p)).join("\n") + "\n";
@@ -33,6 +33,7 @@ module.exports = async (req, res) => {
     res.json({ ok: true, lines: body.trim().split("\n").length, ts: ts });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
+
 
 
 
