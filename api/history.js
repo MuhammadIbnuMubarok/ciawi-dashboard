@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
       const f = await list({ prefix: key });
       if (f.blobs && f.blobs.length) {
         const b = await get(key, { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
-        let txt = ""; if (b) { if (typeof b.text === "function") txt = await b.text(); else if (b.blob && typeof b.blob.text === "function") txt = await b.blob.text(); else if (b.blob && b.blob.downloadUrl) { const __rp = await fetch(b.blob.downloadUrl); txt = __rp.ok ? await __rp.text() : ""; } } if (b && !txt) { res.status(500).json({ error: "baca blob gagal", bentuk: b ? Object.keys(b) : null, blobKeys: b && b.blob ? Object.keys(b.blob) : null }); return; }
+        let txt = ""; if (b && b.stream) { txt = await new Response(b.stream).text(); } if (b && !txt) { res.status(500).json({ error: "stream blob tidak ada", bentuk: b ? Object.keys(b) : null }); return; }
         txt.split("\n").forEach(l => { if (l.trim()) out.push(JSON.parse(l)); });
       }
     }
@@ -21,6 +21,7 @@ module.exports = async (req, res) => {
     res.json({ count: out.length, rows: out });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
+
 
 
 
