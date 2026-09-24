@@ -131,15 +131,36 @@
   function gambarUI() {
     if (document.getElementById('ciawiNotifPill')) return;
     var st = document.createElement('style');
-    st.textContent = '#ciawiNotifPill{position:fixed;z-index:99999;display:flex;align-items:center;gap:8px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;padding:8px 12px;border-radius:999px;font:12px/1.2 system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35)}#ciawiNotifPill.pos-kiri-bawah{left:16px;bottom:16px}#ciawiNotifPill.pos-kanan-bawah{right:16px;bottom:16px}#ciawiNotifPill.pos-kiri-atas{left:16px;top:16px}#ciawiNotifPill.pos-kanan-atas{right:16px;top:16px}#ciawiNotifPill.min{padding:0;border:0;background:transparent;box-shadow:none}#ciawiNotifPill.min #ciawiNotifStatus,#ciawiNotifPill.min #ciawiNotifBtn,#ciawiNotifPill.min #ciawiSireneBtn{display:none}#ciawiNotifMin{cursor:pointer;background:#334155;border:0;color:#fff;border-radius:999px;padding:6px 10px;font-size:12px}#ciawiNotifPill.min #ciawiNotifMin{background:#1d4ed8;padding:10px 12px;font-size:16px;box-shadow:0 4px 14px rgba(0,0,0,.35)}#ciawiNotifBtn{cursor:pointer;background:#1d4ed8;border:0;color:#fff;border-radius:999px;padding:6px 10px;font-size:12px}';
+    st.textContent = '#ciawiNotifPill{position:fixed;z-index:99999;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;display:flex;align-items:center;gap:8px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;padding:8px 12px;border-radius:999px;font:12px/1.2 system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35)}#ciawiNotifPill.pos-kiri-bawah{left:16px;bottom:16px}#ciawiNotifPill.pos-kanan-bawah{right:16px;bottom:16px}#ciawiNotifPill.pos-kiri-atas{left:16px;top:16px}#ciawiNotifPill.pos-kanan-atas{right:16px;top:16px}#ciawiNotifPill.min{padding:0;border:0;background:transparent;box-shadow:none}#ciawiNotifPill.min #ciawiNotifStatus,#ciawiNotifPill.min #ciawiNotifBtn,#ciawiNotifPill.min #ciawiSireneBtn{display:none}#ciawiNotifMin{cursor:pointer;background:#334155;border:0;color:#fff;border-radius:999px;padding:6px 10px;font-size:12px}#ciawiNotifPill.min #ciawiNotifMin{background:#1d4ed8;padding:10px 12px;font-size:16px;box-shadow:0 4px 14px rgba(0,0,0,.35)}#ciawiNotifBtn{cursor:pointer;background:#1d4ed8;border:0;color:#fff;border-radius:999px;padding:6px 10px;font-size:12px}';
     document.head.appendChild(st);
     var pill = document.createElement('div');
     pill.id = 'ciawiNotifPill';
     pill.innerHTML = '<button id="ciawiNotifBtn" type="button">🔔 Aktifkan</button><span id="ciawiNotifStatus">Notifikasi Nonaktif</span><button id="ciawiNotifMin" type="button" title="Kecilkan">—</button>';
     document.body.appendChild(pill);
     document.getElementById('ciawiNotifBtn').addEventListener('click', toggle);
-    pill.classList.add('pos-' + (localStorage.getItem('ciawiNotifPos') || CONFIG.POSISI || 'kiri-bawah'));
-    var bMin = document.getElementById('ciawiNotifMin'); bMin.addEventListener('click', function () { setMin(!isMin()); }); setMin(localStorage.getItem('ciawiNotifMin') === '1');
+    var xy = null; try { xy = JSON.parse(localStorage.getItem('ciawiNotifXY') || 'null'); } catch (e) {}
+    if (xy && typeof xy.x === 'number' && typeof xy.y === 'number') { pill.style.left = xy.x + 'px'; pill.style.top = xy.y + 'px'; }
+    else { pill.classList.add('pos-' + (localStorage.getItem('ciawiNotifPos') || CONFIG.POSISI || 'kiri-bawah')); }
+    var drag = null, dragMoved = 0;
+    pill.addEventListener('pointerdown', function (ev) {
+      if (ev.target.closest('button') && ev.target.id !== 'ciawiNotifMin') return;
+      drag = { sx: ev.clientX, sy: ev.clientY, dx: ev.clientX - pill.offsetLeft, dy: ev.clientY - pill.offsetTop };
+      dragMoved = 0;
+      try { pill.setPointerCapture(ev.pointerId); } catch (e) {}
+    });
+    pill.addEventListener('pointermove', function (ev) {
+      if (!drag) return;
+      if (Math.abs(ev.clientX - drag.sx) + Math.abs(ev.clientY - drag.sy) > 6) dragMoved = 1;
+      var x = Math.min(Math.max(4, ev.clientX - drag.dx), window.innerWidth - pill.offsetWidth - 4);
+      var y = Math.min(Math.max(4, ev.clientY - drag.dy), window.innerHeight - pill.offsetHeight - 4);
+      pill.style.left = x + 'px'; pill.style.top = y + 'px';
+    });
+    pill.addEventListener('pointerup', function () {
+      if (!drag) return;
+      drag = null;
+      if (dragMoved) localStorage.setItem('ciawiNotifXY', JSON.stringify({ x: pill.offsetLeft, y: pill.offsetTop }));
+    });
+    var bMin = document.getElementById('ciawiNotifMin'); bMin.addEventListener('click', function () { if (dragMoved) { dragMoved = 0; return; } setMin(!isMin()); }); setMin(localStorage.getItem('ciawiNotifMin') === '1');
     segarkanStatus();
   }
   function segarkanStatus() {
@@ -211,6 +232,7 @@
     levelDariData: levelDariData,
     config: CONFIG,
     pindah: function (pos) { var p = document.getElementById('ciawiNotifPill'); if (!p) return; p.classList.remove('pos-kiri-bawah', 'pos-kanan-bawah', 'pos-kiri-atas', 'pos-kanan-atas'); p.classList.add('pos-' + pos); localStorage.setItem('ciawiNotifPos', pos); },
-    kecilkan: function (v) { setMin(v !== false); }
+    kecilkan: function (v) { setMin(v !== false); },
+    resetPos: function () { localStorage.removeItem('ciawiNotifXY'); localStorage.removeItem('ciawiNotifPos'); location.reload(); }
   };
 })();
