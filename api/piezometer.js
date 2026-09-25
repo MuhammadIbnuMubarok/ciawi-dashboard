@@ -48,10 +48,17 @@ async function bacaOverride() {
 module.exports = async (req, res) => {
   try {
     if (req.method === "POST") {
-      const chunks = [];
-      for await (const c of req) chunks.push(c);
       let body = {};
-      try { body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"); } catch (e) { body = {}; }
+      try {
+        if (typeof req.body === "object" && req.body !== null) body = req.body;
+        else if (typeof req.body === "string" && req.body) body = JSON.parse(req.body);
+        else {
+          const chunks = [];
+          for await (const c of req) chunks.push(c);
+          const raw = Buffer.concat(chunks).toString("utf8");
+          if (raw) body = JSON.parse(raw);
+        }
+      } catch (e) { body = {}; }
       const key = String(body.key || (req.query && req.query.key) || "");
       if (!process.env.CCTV_UPLOAD_KEY || key !== process.env.CCTV_UPLOAD_KEY) { res.status(403).json({ error: "kunci salah" }); return; }
       const row = MASTER_PIEZO.find(function (r) { return r.name === String(body.name); });
