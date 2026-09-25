@@ -1,12 +1,9 @@
-﻿// api/telegram.js - kirim update ke grup: foto inlet+outlet segar (bila ada) + caption angka real-time; fallback teks
+﻿// api/telegram.js - REAL-TIME: segarkan telemetri + jepret SINBAD saat kirim, lalu album dua foto + caption angka
 const { list, get } = require("@vercel/blob");
+module.exports.maxDuration = 60;
 function fmt2(x){ return (Math.round(x * 100) / 100).toFixed(2); }
 async function fotoCam(cam) {
   try {
-    const f = await list({ prefix: "cctv/" + cam + "/" });
-    if (!(f.blobs && f.blobs.length)) return null;
-    const age = Date.now() - new Date(f.blobs[0].uploadedAt).getTime();
-    if (age > 3600000) return null;
     const gb = await get("cctv/" + cam + "/latest.jpg", { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
     if (!gb || !gb.stream) return null;
     const bufs = []; const rd = gb.stream.getReader();
@@ -20,25 +17,19 @@ module.exports = async (req, res) => {
     const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     const q = req.query || {};
     const CHAT_ID = q.chat || process.env.TELEGRAM_CHAT_ID;
-    if (!TOKEN || !CHAT_ID) { res.status(500).json({ error: "TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID belum di-env" }); return; }
-    const time = String(q.time || "");
+    if (!TOKEN || !CHAT_ID) { res.status(500).json({ error: "token/chat belum di-env" }); return; }
     const cuaca = String(q.cuaca || "-");
-    const now = new Date();
-    const day = now.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-    const key = "updates/" + day + ".json";
-    let f = await list({ prefix: key });
-    if (!(f.blobs && f.blobs.length)) {
-      const pp = {}; new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).forEach(function(x){ pp[x.type] = x.value; });
-      const auto = pp.hour + ":" + pp.minute;
-      try { await fetch("https://ciawi-dashboard.vercel.app/api/update?publish=1&time=" + encodeURIComponent(auto), { cache: "no-store" }); } catch (e) {}
-      f = await list({ prefix: key });
-      if (!(f.blobs && f.blobs.length)) { res.status(404).json({ error: "snapshot otomatis gagal" }); return; }
-    }
-    const b = await get(key, { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
+    const pp = {}; new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).forEach(function(x){ pp[x.type] = x.value; });
+    const tnow = pp.hour + ":" + pp.minute;
+    try { await fetch("https://ciawi-dashboard.vercel.app/api/update?publish=1&time=" + encodeURIComponent(q.time || tnow), { cache: "no-store" }); } catch (e) {}
+    try { await fetch("https://ciawi-dashboard.vercel.app/api/snap?key=" + process.env.CCTV_UPLOAD_KEY, { cache: "no-store" }); } catch (e) {}
+    const day = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+    const f = await list({ prefix: "updates/" + day + ".json" });
+    if (!(f.blobs && f.blobs.length)) { res.status(404).json({ error: "telemetri gagal disegarkan" }); return; }
+    const b = await get("updates/" + day + ".json", { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
     const store = JSON.parse(await new Response(b.stream).text());
-    let sn = null;
-    if (time && store[time]) sn = store[time];
-    else { const ks = Object.keys(store).sort(); sn = store[ks[ks.length - 1]]; }
+    const ks = Object.keys(store).sort();
+    const sn = store[q.time || ks[ks.length - 1]] || store[ks[ks.length - 1]];
     if (!sn) { res.status(404).json({ error: "snapshot tidak ketemu" }); return; }
     const tIn = sn.tmaIn / 100, tOut = sn.tmaOut / 100;
     const elv = fmt2(504.20 + tIn);
@@ -74,6 +65,6 @@ module.exports = async (req, res) => {
       const rp2 = await fetch("https://api.telegram.org/bot" + TOKEN + "/sendPhoto", { method: "POST", body: fd2 });
       jr2 = await rp2.json();
     }
-    res.json({ ok: true, message_id: jr.result && jr.result.message_id, fotoInlet: !!fotoIn, fotoOutlet: !!(jr2 && jr2.ok), text: text });
+    res.json({ ok: true, message_id: jr.result && jr.result.message_id, fotoInlet: !!fotoIn, fotoOutlet: !!(jr2 && jr2.ok), waktu: sn.time, text: text });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
