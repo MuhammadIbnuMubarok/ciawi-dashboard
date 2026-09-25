@@ -19,17 +19,18 @@ module.exports = async (req, res) => {
     const CHAT_ID = q.chat || process.env.TELEGRAM_CHAT_ID;
     if (!TOKEN || !CHAT_ID) { res.status(500).json({ error: "token/chat belum di-env" }); return; }
     const cuaca = String(q.cuaca || "-");
+    const wantT = /^\d{1,2}:\d{2}$/.test(String(q.time || "")) ? String(q.time) : "";
     const pp = {}; new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).forEach(function(x){ pp[x.type] = x.value; });
     const tnow = pp.hour + ":" + pp.minute;
-    try { await fetch("https://ciawi-dashboard.vercel.app/api/update?publish=1&time=" + encodeURIComponent(q.time || tnow), { cache: "no-store" }); } catch (e) {}
+    try { await fetch("https://ciawi-dashboard.vercel.app/api/update?publish=1&time=" + encodeURIComponent(wantT || tnow), { cache: "no-store" }); } catch (e) {}
     try { await fetch("https://ciawi-dashboard.vercel.app/api/snap?key=" + process.env.CCTV_UPLOAD_KEY, { cache: "no-store" }); } catch (e) {}
     const day = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
     const f = await list({ prefix: "updates/" + day + ".json" });
     if (!(f.blobs && f.blobs.length)) { res.status(404).json({ error: "telemetri gagal disegarkan" }); return; }
     const b = await get("updates/" + day + ".json", { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
     const store = JSON.parse(await new Response(b.stream).text());
-    const ks = Object.keys(store).sort();
-    const sn = store[q.time || ks[ks.length - 1]] || store[ks[ks.length - 1]];
+    const ks = Object.keys(store).filter(function (k) { return /^\d{1,2}:\d{2}$/.test(k); }).sort();
+    const sn = store[wantT || ks[ks.length - 1]] || store[ks[ks.length - 1]];
     if (!sn) { res.status(404).json({ error: "snapshot tidak ketemu" }); return; }
     const tIn = sn.tmaIn / 100, tOut = sn.tmaOut / 100;
     const elv = fmt2(504.20 + tIn);

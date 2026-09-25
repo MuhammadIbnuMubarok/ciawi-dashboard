@@ -1,42 +1,20 @@
 ﻿name: telegram-update
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "0 0 * * *"
+    - cron: "0 8 * * *"
   workflow_dispatch:
     inputs:
-      time:
-        description: "jam snapshot (HH:MM WIB)"
-        required: false
-        default: ""
       cuaca:
-        description: "cuaca (Mendung/Cerah/Berawan/Hujan)"
+        description: "Cuaca (opsional, mis. Mendung)"
         required: false
         default: "-"
 jobs:
-  send:
+  kirim:
     runs-on: ubuntu-latest
     steps:
-      - name: snapshot + kirim ke telegram bila jam update
+      - name: Kirim update real-time dua mata Ciawi
         env:
-          SCHEDULE: "07:00 15:00"
+          CUACA: ${{ github.event.inputs.cuaca || '-' }}
         run: |
-          WIB=$(TZ=Asia/Jakarta date +%H:%M)
-          MANUAL_TIME="${{ github.event.inputs.time }}"
-          CUACA="${{ github.event.inputs.cuaca }}"
-          [ -z "$CUACA" ] && CUACA="-"
-          if [ -n "$MANUAL_TIME" ]; then
-            echo "mode manual: time=$MANUAL_TIME cuaca=$CUACA"
-            curl -sS --max-time 60 "https://ciawi-dashboard.vercel.app/api/update?publish=1&time=$MANUAL_TIME"
-            curl -sS --max-time 60 "https://ciawi-dashboard.vercel.app/api/telegram?time=$MANUAL_TIME&cuaca=$CUACA"
-            echo "manual send selesai"
-            exit 0
-          fi
-          for t in $SCHEDULE; do
-            if [ "$WIB" = "$t" ]; then
-              echo "jadwal cocok: $t WIB"
-              curl -sS --max-time 60 "https://ciawi-dashboard.vercel.app/api/update?publish=1&time=$t"
-              curl -sS --max-time 60 "https://ciawi-dashboard.vercel.app/api/telegram?time=$t&cuaca=-"
-              echo "sent at $t WIB"
-            fi
-          done
-          echo "WIB=$WIB SCHEDULE=$SCHEDULE"
+          curl -m 150 -s "https://ciawi-dashboard.vercel.app/api/telegram?cuaca=${CUACA}"
