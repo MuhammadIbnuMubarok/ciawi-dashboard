@@ -12,8 +12,8 @@ module.exports = async (req, res) => {
     const now = new Date();
     const day = now.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
     const key = "updates/" + day + ".json";
-    const f = await list({ prefix: key });
-    if (!(f.blobs && f.blobs.length)) { res.status(404).json({ error: "belum ada snapshot hari ini - panggil /api/update?publish=1 dulu" }); return; }
+    let f = await list({ prefix: key });
+    if (!(f.blobs && f.blobs.length)) { const pp = {}; new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).forEach(function(x){ pp[x.type] = x.value; }); const auto = pp.hour + ":" + pp.minute; try { await fetch("https://ciawi-dashboard.vercel.app/api/update?publish=1&time=" + encodeURIComponent(auto), { cache: "no-store" }); } catch (e) {} f = await list({ prefix: key }); if (!(f.blobs && f.blobs.length)) { res.status(404).json({ error: "snapshot otomatis gagal" }); return; } }
     const b = await get(key, { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
     const store = JSON.parse(await new Response(b.stream).text());
     let sn = null;
@@ -42,4 +42,5 @@ module.exports = async (req, res) => {
     res.json({ ok: true, message_id: jr.result && jr.result.message_id, text: text });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
+
 
