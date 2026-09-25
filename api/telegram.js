@@ -1,4 +1,4 @@
-﻿// api/telegram.js - REAL-TIME 4 MATA: album foto + pesan keterangan TMA terpisah (selalu terlihat)
+﻿// api/telegram.js - REAL-TIME: foto ber-keterangan berurutan (inlet Ciawi -> outlet Ciawi -> Sukamahi), tanpa baris kamera
 const { list, get } = require("@vercel/blob");
 module.exports.maxDuration = 60;
 function fmt2(x){ return (Math.round(x * 100) / 100).toFixed(2); }
@@ -37,26 +37,33 @@ module.exports = async (req, res) => {
     const outElv = fmt2(486.92 + tOut);
     const p = {}; new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", day: "2-digit", month: "2-digit", year: "numeric" }).formatToParts(new Date(sn.ts)).forEach(function(x){ p[x.type] = x.value; });
     const st = String(sn.stIn || "normal"); const Status = st.charAt(0).toUpperCase() + st.slice(1);
-    const text = "<b>📊 Update Bendungan Ciawi</b>\n" + p.day + "/" + p.month + "/" + p.year + " pukul " + sn.time + " WIB\n\n<b>Status:</b> " + Status + "\n<b>Inlet:</b> +" + elv + " (tma " + fmt2(tIn) + " m)\n<b>Outlet:</b> +" + outElv + " (tma " + fmt2(tOut) + " m)\n\n<i>Cuaca: " + cuaca + "</i>\n📷 Ciawi inlet-outlet + Sukamahi inlet-outlet — jepretan menit ini";
-    const kirimTeks = async function () {
-      const r = await fetch("https://api.telegram.org/bot" + TOKEN + "/sendMessage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: CHAT_ID, text: text, parse_mode: "HTML", disable_web_page_preview: true }) });
-      return await r.json();
-    };
-    const CAMS = [["inlet", "ciawi-inlet"], ["outlet", "ciawi-outlet"], ["skinlet", "sukamahi-inlet"], ["skoutlet", "sukamahi-outlet"]];
-    const hadir = [];
-    for (const c of CAMS) { const buf = await fotoCam(c[0]); if (buf) hadir.push([c[1], buf]); }
-    let jr = null;
-    if (hadir.length) {
-      const media = hadir.map(function (x, i) { return { type: "photo", media: "attach://f" + i }; });
+    const tgl = p.day + "/" + p.month + "/" + p.year;
+    const text = "<b>📊 Update Bendungan Ciawi</b>\n" + tgl + " pukul " + sn.time + " WIB\n\n<b>Status:</b> " + Status + "\n<b>Inlet:</b> +" + elv + " (tma " + fmt2(tIn) + " m)\n<b>Outlet:</b> +" + outElv + " (tma " + fmt2(tOut) + " m)\n\n<i>Cuaca: " + cuaca + "</i>";
+    const CAMS = [
+      ["inlet", "ciawi-inlet", text],
+      ["outlet", "ciawi-outlet", "<b>Outlet Ciawi (pintu)</b> — " + tgl + " " + sn.time + " WIB"],
+      ["skinlet", "sukamahi-inlet", "<b>Inlet Sukamahi</b> — " + tgl + " " + sn.time + " WIB"],
+      ["skoutlet", "sukamahi-outlet", "<b>Outlet Sukamahi (pintu)</b> — " + tgl + " " + sn.time + " WIB"]
+    ];
+    let pertama = null;
+    let jumlah = 0;
+    for (const c of CAMS) {
+      const buf = await fotoCam(c[0]);
+      if (!buf) continue;
       const fd = new FormData();
       fd.append("chat_id", String(CHAT_ID));
-      fd.append("media", JSON.stringify(media));
-      hadir.forEach(function (x, i) { fd.append("f" + i, new Blob([x[1]], { type: "image/jpeg" }), x[0] + ".jpg"); });
-      const rp = await fetch("https://api.telegram.org/bot" + TOKEN + "/sendMediaGroup", { method: "POST", body: fd });
-      jr = await rp.json();
+      fd.append("caption", c[2]);
+      fd.append("parse_mode", "HTML");
+      fd.append("photo", new Blob([buf], { type: "image/jpeg" }), c[1] + ".jpg");
+      const rp = await fetch("https://api.telegram.org/bot" + TOKEN + "/sendPhoto", { method: "POST", body: fd });
+      const jr = await rp.json();
+      if (jr.ok) { jumlah++; if (!pertama) pertama = jr; }
     }
-    const jt = await kirimTeks();
-    if (!jr && !jt.ok) { res.status(502).json({ error: "telegram gagal", detail: jt }); return; }
-    res.json({ ok: true, album: !!(jr && jr.ok), foto: hadir.length, message_id: jt.result && jt.result.message_id, waktu: sn.time });
+    if (!pertama) {
+      const r2 = await fetch("https://api.telegram.org/bot" + TOKEN + "/sendMessage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: CHAT_ID, text: text, parse_mode: "HTML", disable_web_page_preview: true }) });
+      pertama = await r2.json();
+    }
+    if (!pertama || !pertama.ok) { res.status(502).json({ error: "telegram gagal", detail: pertama }); return; }
+    res.json({ ok: true, foto: jumlah, message_id: pertama.result && pertama.result.message_id, waktu: sn.time });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
