@@ -59,7 +59,10 @@ module.exports = async (req, res) => {
           if (raw) body = JSON.parse(raw);
         }
       } catch (e) { body = {}; }
-      const key = String(body.key || (req.query && req.query.key) || "");
+      const q2 = req.query || {};
+      const key = String(body.key || q2.key || "");
+      if (body.name === undefined && q2.name !== undefined) body.name = q2.name;
+      if (body.press === undefined && q2.press !== undefined) body.press = q2.press;
       if (!process.env.CCTV_UPLOAD_KEY || key !== process.env.CCTV_UPLOAD_KEY) { res.status(403).json({ error: "kunci salah" }); return; }
       const row = MASTER_PIEZO.find(function (r) { return r.name === String(body.name); });
       const press = Number(body.press);
