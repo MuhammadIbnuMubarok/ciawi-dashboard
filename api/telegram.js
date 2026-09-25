@@ -1,4 +1,4 @@
-﻿// api/telegram.js - REAL-TIME: segarkan telemetri + jepret SINBAD saat kirim, lalu album dua foto + caption angka
+﻿// api/telegram.js - REAL-TIME 4 MATA: segarkan telemetri + jepret SINBAD saat kirim, kirim album satu pesan
 const { list, get } = require("@vercel/blob");
 module.exports.maxDuration = 60;
 function fmt2(x){ return (Math.round(x * 100) / 100).toFixed(2); }
@@ -37,17 +37,20 @@ module.exports = async (req, res) => {
     const outElv = fmt2(486.92 + tOut);
     const p = {}; new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", day: "2-digit", month: "2-digit", year: "numeric" }).formatToParts(new Date(sn.ts)).forEach(function(x){ p[x.type] = x.value; });
     const st = String(sn.stIn || "normal"); const Status = st.charAt(0).toUpperCase() + st.slice(1);
-    const text = "<b>📊 Update Bendungan Ciawi</b>\n" + p.day + "/" + p.month + "/" + p.year + " pukul " + sn.time + " WIB\n\n<b>Status:</b> " + Status + "\n<b>Inlet:</b> +" + elv + " (tma " + fmt2(tIn) + " m)\n<b>Outlet:</b> +" + outElv + " (tma " + fmt2(tOut) + " m)\n\n<i>Cuaca: " + cuaca + "</i>";
-    const fotoIn = await fotoCam("inlet");
-    const fotoOut = await fotoCam("outlet");
+    const text = "<b>📊 Update Bendungan Ciawi</b>\n" + p.day + "/" + p.month + "/" + p.year + " pukul " + sn.time + " WIB\n\n<b>Status:</b> " + Status + "\n<b>Inlet:</b> +" + elv + " (tma " + fmt2(tIn) + " m)\n<b>Outlet:</b> +" + outElv + " (tma " + fmt2(tOut) + " m)\n\n<i>Cuaca: " + cuaca + "</i>\n📷 Ciawi inlet-outlet + Sukamahi inlet-outlet — jepretan menit ini";
+    const CAMS = [["inlet", "ciawi-inlet"], ["outlet", "ciawi-outlet"], ["skinlet", "sukamahi-inlet"], ["skoutlet", "sukamahi-outlet"]];
+    const hadir = [];
+    for (const c of CAMS) { const buf = await fotoCam(c[0]); if (buf) hadir.push([c[1], buf]); }
     let jr = null;
-    if (fotoIn) {
+    if (hadir.length) {
+      const media = hadir.map(function (x, i) { return { type: "photo", media: "attach://f" + i }; });
       const fd = new FormData();
       fd.append("chat_id", String(CHAT_ID));
+      fd.append("media", JSON.stringify(media));
       fd.append("caption", text);
       fd.append("parse_mode", "HTML");
-      fd.append("photo", new Blob([fotoIn], { type: "image/jpeg" }), "inlet.jpg");
-      const rp = await fetch("https://api.telegram.org/bot" + TOKEN + "/sendPhoto", { method: "POST", body: fd });
+      hadir.forEach(function (x, i) { fd.append("f" + i, new Blob([x[1]], { type: "image/jpeg" }), x[0] + ".jpg"); });
+      const rp = await fetch("https://api.telegram.org/bot" + TOKEN + "/sendMediaGroup", { method: "POST", body: fd });
       jr = await rp.json();
     }
     if (!jr || !jr.ok) {
@@ -55,17 +58,6 @@ module.exports = async (req, res) => {
       jr = await r2.json();
     }
     if (!jr.ok) { res.status(502).json({ error: "telegram gagal", detail: jr }); return; }
-    let jr2 = null;
-    if (fotoOut) {
-      const cap2 = "<b>📷 Outlet Ciawi (pintu)</b> — " + p.day + "/" + p.month + "/" + p.year + " " + sn.time + " WIB";
-      const fd2 = new FormData();
-      fd2.append("chat_id", String(CHAT_ID));
-      fd2.append("caption", cap2);
-      fd2.append("parse_mode", "HTML");
-      fd2.append("photo", new Blob([fotoOut], { type: "image/jpeg" }), "outlet.jpg");
-      const rp2 = await fetch("https://api.telegram.org/bot" + TOKEN + "/sendPhoto", { method: "POST", body: fd2 });
-      jr2 = await rp2.json();
-    }
-    res.json({ ok: true, message_id: jr.result && jr.result.message_id, fotoInlet: !!fotoIn, fotoOutlet: !!(jr2 && jr2.ok), waktu: sn.time, text: text });
+    res.json({ ok: true, message_id: jr.result && jr.result.message_id, foto: hadir.length, waktu: sn.time });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
