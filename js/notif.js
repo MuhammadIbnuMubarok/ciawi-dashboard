@@ -204,13 +204,6 @@
     timer = setInterval(poll, CONFIG.INTERVAL_DETIK * 1000);
     poll();
   }
-  function poll() {
-    if (!aktif()) return;
-    fetch(CONFIG.SUMBER_DATA, { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { if (d) evaluasi(d); })
-      .catch(function () { });
-  }
   window.addEventListener('ciawi:status', function (e) { if (e && e.detail) evaluasi(e.detail); });
 
   function init() {
@@ -236,6 +229,7 @@
     config: CONFIG,
     pindah: function (pos) { var p = document.getElementById('ciawiNotifPill'); if (!p) return; p.classList.remove('pos-kiri-bawah', 'pos-kanan-bawah', 'pos-kiri-atas', 'pos-kanan-atas'); p.classList.add('pos-' + pos); localStorage.setItem('ciawiNotifPos', pos); },
     kecilkan: function (v) { setMin(v !== false); },
-    resetPos: function () { localStorage.removeItem('ciawiNotifXY'); localStorage.removeItem('ciawiNotifPos'); location.reload(); }
+    resetPos: function () { localStorage.removeItem('ciawiNotifXY'); localStorage.removeItem('ciawiNotifPos'); location.reload(); },
+    ujiHealth: function (ev) { laporHealth(ev); }
   };
 })();
