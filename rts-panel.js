@@ -24,20 +24,20 @@
     var H = [];
     H.push(`<div style="max-width:1280px;margin:0 auto">`);
     H.push(`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">`);
-    H.push(`<h1 style="font-size:20px;margin:0">?? RTS <span style="color:#38BDF8">DEFORMASI BENDUNGAN CIAWI</span> `);
+    H.push(`<h1 style="font-size:20px;margin:0">RTS <span style="color:#38BDF8">DEFORMASI BENDUNGAN CIAWI</span> `);
     H.push(`<span id="rtsLive" style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid #1C2A4B;color:#8CA3C7">-</span></h1>`);
     var btn = "background:#0B132B;color:#38BDF8;border:1px solid #1C2A4B;border-radius:8px;padding:8px 14px";
     H.push(`<div style="display:flex;gap:8px">`);
-    H.push(`<button id="rtsRefresh" style="${btn};cursor:pointer">? SEGARKAN</button>`);
-    H.push(`<a href="/api/rts?format=csv" download style="${btn};text-decoration:none;font-size:13px">? UNDUH CSV</a>`);
-    H.push(`<button id="rtsBack" style="${btn};cursor:pointer">? DASHBOARD</button>`);
+    H.push(`<button id="rtsRefresh" style="${btn};cursor:pointer">SEGARKAN</button>`);
+    H.push(`<a href="/api/rts?format=csv" download style="${btn};text-decoration:none;font-size:13px">UNDUH CSV</a>`);
+    H.push(`<button id="rtsBack" style="${btn};cursor:pointer">DASHBOARD</button>`);
     H.push(`</div></div>`);
     var card = "background:#0B132B;border:1px solid #1C2A4B;border-radius:12px;padding:16px;margin-bottom:16px";
     var h2 = "font-size:13px;letter-spacing:1.2px;color:#8CA3C7;margin-bottom:12px";
-    H.push(`<div style="${card}"><h2 style="${h2}">STATUS POS ADR / RTS — PEMBACAAN: `);
+    H.push(`<div style="${card}"><h2 style="${h2}">STATUS POS ADR / RTS - PEMBACAAN: `);
     H.push(`<span id="rtsTgl" style="color:#38BDF8">-</span></h2>`);
     H.push(`<div id="rtsCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px"></div></div>`);
-    H.push(`<div style="${card}"><h2 style="${h2}">PERGESERAN PRISMA — MAKS: <span id="rtsMax" style="color:#38BDF8">-</span></h2>`);
+    H.push(`<div style="${card}"><h2 style="${h2}">PERGESERAN PRISMA - MAKS: <span id="rtsMax" style="color:#38BDF8">-</span></h2>`);
     H.push(`<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>`);
     var ths = ["No", "Prisma", "Nama", "Waktu", "dX (m)", "dY (m)", "dZ (m)", "Linier (m)", "Linier (mm)", "Arah (deg)", "Status"];
     ths.forEach(function (x) {

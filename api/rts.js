@@ -32,8 +32,8 @@ function parse(html) {
   out.humidity = ambil(html, /Humidity Logger<\/h3><\/a>\s*<h2[^>]*>([^<]+)</);
   out.battery = ambil(html, /Battery Logger<\/h3><\/a>\s*<h2[^>]*>([^<]+)</);
   out.temperature = ambil(html, /Temperature Logger<\/h3><\/a>\s*<h2[^>]*>([^<]+)</);
-  out.statusLogger = ambil(html, /Status Logger<\/strong>\s*<label[^>]*>\s*([^<]+?)\s*<\/label>/);
-  out.statusSd = ambil(html, /Status SD Card<\/strong>\s*<label[^>]*>\s*([^<]+?)\s*<\/label>/);
+  out.statusLogger = ambil(html, /Status Logger<\/a><\/strong>\s*<label[^>]*>\s*([^<]+?)\s*<\/label>/);
+  out.statusSd = ambil(html, /Status SD Card<\/a><\/strong>\s*<label[^>]*>\s*([^<]+?)\s*<\/label>/);
   out.tanggal = ambil(html, /Date Selected : ([^<]+)</);
   out.prisma = [];
   const marker = "parameter\" value=" + Q;
