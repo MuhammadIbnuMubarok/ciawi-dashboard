@@ -8,6 +8,11 @@
     document.querySelectorAll(sels).forEach(function (el) {
       if (/^Piezometer$/i.test((el.textContent || "").trim())) target = el;
     });
+    if (!target) {
+      document.querySelectorAll(sels).forEach(function (el) {
+        if (/Data Teknis/i.test(el.textContent || "")) target = el;
+      });
+    }
     if (!target || document.getElementById("rtsTab")) return;
     var tab = document.createElement("a");
     tab.id = "rtsTab";

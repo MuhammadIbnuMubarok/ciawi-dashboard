@@ -10,23 +10,26 @@
 
 <link rel="stylesheet" href="./css/tailwind.css">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/cms.css">
 </head>
 <body class="bg-surface font-mono text-on-surface min-h-screen scroll-smooth">
 <header class="fixed top-0 w-full z-50 bg-surface-container-lowest/90 backdrop-blur-xl border-b border-surface-container shadow-[0_4px_20px_rgba(0,0,0,0.35)]">
 <div class="h-16 px-6 flex items-center justify-between gap-4">
 <div class="flex items-center gap-3 cursor-pointer" onclick="scrollToSection('dashboard-top')">
 <div class="w-9 h-9 rounded bg-surface-container-high flex items-center justify-center border border-primary/20"><span class="material-symbols-outlined text-primary text-[20px]">waves</span></div>
-<div class="flex flex-col"><span class="text-[10px] font-headline font-bold text-primary uppercase tracking-wider">Dry Dam Telemetry SCADA</span><h1 class="text-base font-headline text-on-surface font-bold tracking-tight">BENDUNGAN CIAWI <span class="text-[10px] text-on-surface-variant font-normal hidden lg:inline">| SISTEM EVALUASI & PEMANTAUAN BANJIR</span></h1></div>
+<div class="flex flex-col"><span class="text-[10px] font-headline font-bold text-primary uppercase tracking-wider">Dry Dam Telemetry SCADA</span><h1 class="text-base font-headline text-on-surface font-bold tracking-tight"><span class="cms-title-main">BENDUNGAN CIAWI</span> <span class="text-[10px] text-on-surface-variant font-normal hidden lg:inline">| SISTEM EVALUASI & PEMANTAUAN BANJIR</span></h1></div>
 </div>
 <nav class="hidden lg:flex items-center gap-1">
 <button class="nav-item text-xs px-3 py-1.5 transition-all bg-primary-container text-on-primary-container font-bold rounded shadow-sm" onclick="handleNavClick(this,'dashboard-top')">Dashboard Pemantauan</button>
 <button class="nav-item text-xs px-3 py-1.5 text-on-surface-variant hover:text-on-surface transition-all rounded" onclick="handleNavClick(this,'section-hidrograf')">Hidrograf Inflow vs Outflow</button>
 <button class="nav-item text-xs px-3 py-1.5 text-on-surface-variant hover:text-on-surface transition-all rounded" onclick="handleNavClick(this,'section-neraca')">Neraca Air & Reduksi</button>
 <button class="nav-item text-xs px-3 py-1.5 text-on-surface-variant hover:text-on-surface transition-all rounded" onclick="handleNavClick(this,'section-teknis')">Data Teknis & Operasional</button>
+<button class="nav-item text-xs px-3 py-1.5 text-on-surface-variant hover:text-on-surface transition-all rounded" onclick="handleNavClick(this,'section-konten')">Berita & Galeri</button>
 </nav>
-<div class="flex items-center gap-3"><div class="hidden md:flex flex-col items-end text-[10px] text-on-surface-variant leading-tight"><span>WAKTU SERVER (WIB)</span><span class="text-secondary font-mono text-xs" id="live-clock">—</span></div><button id="theme-toggle" onclick="toggleTheme()" class="w-8 h-8 rounded bg-surface-container-high border border-primary/20 flex items-center justify-center text-primary" title="Ganti mode terang/gelap"><span class="material-symbols-outlined text-[18px]" id="theme-icon">dark_mode</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary-container text-[18px]">person</span></div></div>
+<div class="flex items-center gap-3"><div class="cms-toolbar"><button id="cms-edit-toggle" onclick="window.__cms.toggleEditMode()" title="Mode Edit"><span class="material-symbols-outlined" style="font-size:16px">edit</span>MODE EDIT</button><button onclick="window.__cms.openCMSPanel()" title="Buka CMS Panel"><span class="material-symbols-outlined" style="font-size:16px">dashboard_customize</span>CMS</button><button id="cms-btn-edit-teknis" class="cms-edit-only" style="display:none" onclick="window.__cms.openTeknisEditor()" title="Edit Data Teknis"><span class="material-symbols-outlined" style="font-size:16px">architecture</span>TEKNIS</button></div><div class="hidden md:flex flex-col items-end text-[10px] text-on-surface-variant leading-tight"><span>WAKTU SERVER (WIB)</span><span class="text-secondary font-mono text-xs" id="live-clock">—</span></div><button id="theme-toggle" onclick="toggleTheme()" class="w-8 h-8 rounded bg-surface-container-high border border-primary/20 flex items-center justify-center text-primary" title="Ganti mode terang/gelap"><span class="material-symbols-outlined text-[18px]" id="theme-icon">dark_mode</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary-container text-[18px]">person</span></div></div>
 </div>
 </header>
+<div id="cms-mode-indicator"><span class="material-symbols-outlined" style="font-size:16px">edit_note</span> MODE EDIT AKTIF — Klik teks untuk mengedit langsung</div>
 <main class="pt-20 px-6 flex flex-col gap-6" id="dashboard-top">
 <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 bg-surface-container-low border border-surface-container rounded px-4 py-2.5">
 <div class="flex flex-wrap items-center gap-4 text-[11px]"><span class="flex items-center text-siaga-normal font-bold"><span class="w-1.5 h-1.5 rounded-full bg-siaga-normal mr-1.5 animate-ping"></span>SISTEM SIAGA AKTIF • STATUS TERKINI: <span id="strip-status" class="ml-1">—</span></span><span class="text-on-surface-variant">DATASET VALIDASI: <span class="text-primary font-bold">NERACA.csv</span> • REKAPITULASI RESMI BBWS CILIWUNG-CISADANE • <span id="strip-count" class="text-on-surface font-bold">0</span> REKAMAN</span></div>
@@ -141,6 +144,38 @@
 </div>
 </div>
 </div>
+<!-- ═══════════ SECTION: BERITA, PENGUMUMAN & GALERI ═══════════ -->
+<div class="bg-surface-card p-4 rounded border border-surface-container/60 glow-panel flex flex-col gap-4" id="section-konten">
+<div class="cms-section-panel">
+<div class="cms-section-header">
+<div>
+<h3><span class="material-symbols-outlined text-primary" style="font-size:20px">newspaper</span> BERITA & PENGUMUMAN</h3>
+<p class="cms-section-subtitle">Informasi terkini seputar operasional Bendungan Ciawi</p>
+</div>
+<div class="flex gap-2">
+<button class="cms-edit-only flex items-center gap-1 bg-primary-container text-on-primary-container px-3 py-1.5 rounded text-xs font-bold hover:brightness-110 transition-all" style="display:none" onclick="window.__cms.openBeritaEditor(null)"><span class="material-symbols-outlined" style="font-size:16px">add</span>TAMBAH</button>
+</div>
+</div>
+<div id="cms-berita-list"></div>
+</div>
+</div>
+
+<div class="bg-surface-card p-4 rounded border border-surface-container/60 glow-panel flex flex-col gap-4">
+<div class="cms-section-panel">
+<div class="cms-section-header">
+<div>
+<h3><span class="material-symbols-outlined text-secondary" style="font-size:20px">photo_library</span> GALERI DOKUMENTASI</h3>
+<p class="cms-section-subtitle">Dokumentasi visual kondisi bendungan dan infrastruktur</p>
+</div>
+<div class="flex gap-2">
+<button class="cms-edit-only flex items-center gap-1 bg-primary-container text-on-primary-container px-3 py-1.5 rounded text-xs font-bold hover:brightness-110 transition-all" style="display:none" onclick="window.__cms.openGaleriEditor(null)"><span class="material-symbols-outlined" style="font-size:16px">add_photo_alternate</span>TAMBAH FOTO</button>
+</div>
+</div>
+<div class="cms-galeri-grid-section" id="cms-galeri-grid"></div>
+</div>
+</div>
+<!-- ═══════════ END SECTION: BERITA & GALERI ═══════════ -->
+
 <footer class="text-center text-[10px] text-on-surface-variant py-4 border-t border-surface-container/50" id="app-footer"></footer>
 </main>
 <script src="js/power-gate.js"></script>
@@ -157,8 +192,9 @@
 <script src="js/sirene.js" defer></script>
 
 
-<script src="/pz-panel.js"></script>
-<script src="/rts-panel.js"></script>
+<script src="pz-panel.js"></script>
+<script src="rts-panel.js"></script>
+<script src="js/cms.js"></script>
 </body>
 </html>
 

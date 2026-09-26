@@ -1,7 +1,7 @@
 // api/health.js — pusat alert kesehatan sistem (aditif, non-breaking)
 const TG = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN}`;
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const q = req.query || {};
   const event = String(q.event || 'check');
   const source = String(q.source || 'api');
