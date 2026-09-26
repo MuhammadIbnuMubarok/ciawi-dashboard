@@ -26,7 +26,8 @@ module.exports = async (req, res) => {
     const send = async function (t, kb) {
       const p = { chat_id: chatId, text: t, parse_mode: "HTML" };
       if (kb) p.reply_markup = kb;
-      await fetch(api + "sendMessage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+      const rr = await fetch(api + "sendMessage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+      if (!rr.ok) { delete p.parse_mode; p.text = String(t).replace(/<[^>]+>/g, ""); await fetch(api + "sendMessage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) }); }
     };
     if (cbId) await fetch(api + "answerCallbackQuery", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ callback_query_id: cbId }) });
     const menu = { inline_keyboard: [
@@ -34,7 +35,7 @@ module.exports = async (req, res) => {
       [{ text: "CCTV", callback_data: "/cctv" }, { text: "Bantuan", callback_data: "/bantuan" }]
     ] };
     if (text === "/start" || text === "/bantuan") {
-      await send("<b>Bot UPB Update - Bendungan Ciawi</b>\n/update = laporan terkini (foto + angka)\n/status = status siaga & TMA\n/cctv = foto mata CCTV\n/bantuan = menu ini", menu);
+      await send("<b>Bot UPB Update - Bendungan Ciawi</b>\n/update = laporan terkini (foto + angka)\n/status = status siaga &amp; TMA\n/cctv = foto mata CCTV\n/bantuan = menu ini", menu);
       return;
     }
     if (text === "/update" || text === "/status" || text === "/cctv") {
