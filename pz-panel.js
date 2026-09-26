@@ -16,18 +16,18 @@
     target.parentNode.insertBefore(tab, target.nextSibling);
     var ov = document.createElement("div");
     ov.id = "pzOverlay";
-    var cs = "display:none;position:fixed;inset:0;z-index:9999;";
-    cs += "overflow:auto;background:#060B18;color:#E2E8F0;";
-    cs += "font-family:Segoe UI,system-ui,sans-serif;padding:20px";
+    var cs = "display:none;position:fixed;inset:0;z-index:9999;overflow:auto;";
+    cs += "background:#060B18;color:#E2E8F0;font-family:Segoe UI,system-ui,sans-serif;padding:20px";
     ov.style.cssText = cs;
     var H = [];
     H.push(`<div style="max-width:1200px;margin:0 auto">`);
     H.push(`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">`);
-    H.push(`<h1 style="font-size:20px;margin:0">??? PIEZOMETER <span style="color:#38BDF8">BENDUNGAN CIAWI</span></h1>`);
-    H.push(`<div style="display:flex;gap:8px">`);
+    H.push(`<h1 style="font-size:20px;margin:0">PIEZOMETER <span style="color:#38BDF8">BENDUNGAN CIAWI</span></h1>`);
     var btn = "background:#0B132B;color:#38BDF8;border:1px solid #1C2A4B;border-radius:8px;padding:8px 14px";
-    H.push(`<a href="/api/piezometer?format=csv" download style="${btn};text-decoration:none;font-size:13px">? UNDUH CSV</a>`);
-    H.push(`<button id="pzBack" style="${btn};cursor:pointer">? DASHBOARD</button>`);
+    H.push(`<div style="display:flex;gap:8px">`);
+    H.push(`<button id="pzRefresh" style="${btn};cursor:pointer">SEGARKAN</button>`);
+    H.push(`<a href="/api/piezometer?format=csv" download style="${btn};text-decoration:none;font-size:13px">UNDUH CSV</a>`);
+    H.push(`<button id="pzBack" style="${btn};cursor:pointer">DASHBOARD</button>`);
     H.push(`</div></div>`);
     var card = "background:#0B132B;border:1px solid #1C2A4B;border-radius:12px;padding:16px;margin-bottom:16px";
     var h2 = "font-size:13px;letter-spacing:1.2px;color:#8CA3C7;margin-bottom:12px";
@@ -43,14 +43,22 @@
     H.push(`<button type="submit" style="background:#38BDF8;color:#04121F;border:none;border-radius:8px;padding:10px 18px;font-weight:700;align-self:end;cursor:pointer">SIMPAN</button>`);
     H.push(`</form><div id="pzToast" style="font-size:13px;margin-top:10px;min-height:18px"></div></div>`);
     H.push(`<div style="${card}">`);
-    H.push(`<h2 style="${h2}">LIVE STATUS — PEMBACAAN TERAKHIR: <span id="pzLast" style="color:#38BDF8">-</span></h2>`);
+    H.push(`<h2 style="${h2}">LIVE STATUS - PEMBACAAN TERAKHIR: <span id="pzLast" style="color:#38BDF8">-</span></h2>`);
     H.push(`<div id="pzGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px"></div></div>`);
     H.push(`<div style="${card}">`);
-    H.push(`<h2 style="${h2}">TABEL REKAMAN TERAKHIR PER INSTRUMEN</h2>`);
-    H.push(`<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">`);
-    H.push(`<thead><tr>`);
-    var ths = ["Sta", "Nama", "Tanggal", "Tip", "Top", "Press", "Elev. Air", "Izin", "Ru", "Status"];
-    ths.forEach(function (x) { H.push(`<th style="padding:8px;border-bottom:1px solid #1C2A4B;color:#8CA3C7;text-align:left">${x}</th>`); });
+    H.push(`<h2 style="${h2}">TABEL KONDISI PIEZOMETER - <span id="pzAsOf" style="color:#38BDF8">TERKINI</span></h2>`);
+    H.push(`<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">`);
+    H.push(`<label style="font-size:11px;color:#8CA3C7;margin:0">Kondisi per tanggal:</label>`);
+    H.push(`<input id="pzTanggal" type="date" style="background:#070D1D;color:#E2E8F0;border:1px solid #1C2A4B;border-radius:8px;padding:8px">`);
+    H.push(`<select id="pzRiwayat" style="background:#070D1D;color:#E2E8F0;border:1px solid #1C2A4B;border-radius:8px;padding:8px"><option value="">- riwayat -</option></select>`);
+    H.push(`<button id="pzTerapkan" type="button" style="background:#38BDF8;color:#04121F;border:none;border-radius:8px;padding:9px 14px;font-weight:700;cursor:pointer">TERAPKAN</button>`);
+    H.push(`<button id="pzTerkini" type="button" style="${btn};cursor:pointer">TERKINI</button>`);
+    H.push(`</div>`);
+    H.push(`<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>`);
+    var ths = ["Sta", "Nama", "Tip", "Top", "Press", "Elev. Air", "Izin", "Ru", "Status"];
+    ths.forEach(function (x) {
+      H.push(`<th style="padding:8px;border-bottom:1px solid #1C2A4B;color:#8CA3C7;text-align:left">${x}</th>`);
+    });
     H.push(`</tr></thead><tbody id="pzTb"></tbody></table></div></div></div>`);
     ov.innerHTML = H.join("");
     document.body.appendChild(ov);
@@ -59,8 +67,10 @@
     function fmt(x, d) { var p = Math.pow(10, d); return (Math.round(x * p) / p).toFixed(d); }
     var DATA = [];
     function render() {
-      document.getElementById("pzGrid").innerHTML = "";
-      document.getElementById("pzTb").innerHTML = "";
+      var g = document.getElementById("pzGrid");
+      g.innerHTML = "";
+      var tb = document.getElementById("pzTb");
+      tb.innerHTML = "";
       DATA.forEach(function (r) {
         var ok = r.status === "AMAN";
         var col = ok ? "#22C55E" : "#EF4444";
@@ -72,44 +82,63 @@
         s += `<div style="display:flex;justify-content:space-between;align-items:center">`;
         s += `<span style="font-size:11px;font-weight:700;color:${col}">${r.status}</span>`;
         s += `<span style="font-size:10px;color:#8CA3C7;border:1px solid #1C2A4B;border-radius:6px;padding:2px 6px">STA ${r.sta}</span></div>`;
-        s += `<div style="font-size:11px;color:#8CA3C7">Ru <b style="color:#38BDF8;font-family:Consolas,monospace">${fmt(r.ru, 3)}</b> · press ${fmt(r.press, 2)} m</div>`;
+        s += `<div style="font-size:11px;color:#8CA3C7">Ru <b style="color:#38BDF8;font-family:Consolas,monospace">${fmt(r.ru, 3)}</b> - press ${fmt(r.press, 2)} m</div>`;
         s += `<div style="font-size:10px;color:#8CA3C7">Update: ${r.tanggal || "master"}</div>`;
         b.innerHTML = s;
-        document.getElementById("pzGrid").appendChild(b);
-        var t = `<td style="${td}">${r.sta}</td>`;
-        t += `<td style="${td};font-weight:700">${r.name}</td>`;
-        t += `<td style="${td}">${r.tanggal || "-"}</td>`;
-        t += `<td style="${tdn}">${fmt(r.tip, 2)}</td>`;
-        t += `<td style="${tdn}">${fmt(r.top, 2)}</td>`;
-        t += `<td style="${tdn}">${fmt(r.press, 2)}</td>`;
-        t += `<td style="${tdn}">${fmt(r.tip + r.press, 2)}</td>`;
-        t += `<td style="${tdn}">${fmt(r.izin, 2)}</td>`;
-        t += `<td style="${tdn}">${fmt(r.ru, 3)}</td>`;
-        t += `<td style="${td};font-weight:700;color:${col}">${r.status}</td>`;
+        g.appendChild(b);
         var tr = document.createElement("tr");
-        tr.innerHTML = t;
-        document.getElementById("pzTb").appendChild(tr);
+        tr.innerHTML = `<td style="${td}">${r.sta}</td><td style="${td};font-weight:700">${r.name}</td><td style="${tdn}">${fmt(r.tip, 2)}</td><td style="${tdn}">${fmt(r.top, 2)}</td>` +
+          `<td style="${tdn}">${fmt(r.press, 2)}</td><td style="${tdn}">${fmt(r.tip + r.press, 2)}</td><td style="${tdn}">${fmt(r.izin, 2)}</td><td style="${tdn}">${fmt(r.ru, 3)}</td><td style="${td};font-weight:700;color:${col}">${r.status}</td>`;
+        tb.appendChild(tr);
       });
     }
-    function load() {
-      fetch("/api/piezometer", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) {
+    function isiNama() {
+      var sel = document.getElementById("pzName");
+      var cur = sel.value;
+      sel.innerHTML = "";
+      DATA.forEach(function (r) {
+        var o = document.createElement("option");
+        o.value = r.name;
+        o.textContent = r.name + " (STA " + r.sta + ")";
+        sel.appendChild(o);
+      });
+      if (cur) sel.value = cur;
+    }
+    function load(tgl) {
+      var url = "/api/piezometer";
+      if (tgl) url += "?tanggal=" + encodeURIComponent(tgl);
+      fetch(url, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) {
         DATA = j.data || [];
         document.getElementById("pzLast").textContent = j.terakhir || "-";
-        var sel = document.getElementById("pzName");
-        var cur = sel.value;
-        sel.innerHTML = "";
-        DATA.forEach(function (r) {
+        document.getElementById("pzAsOf").textContent = j.sesuai ? ("KONDISI PER " + j.sesuai) : "TERKINI";
+        var rw = document.getElementById("pzRiwayat");
+        var curw = rw.value;
+        rw.innerHTML = `<option value="">- riwayat -</option>`;
+        (j.daftarTanggal || []).forEach(function (d) {
           var o = document.createElement("option");
-          o.value = r.name;
-          o.textContent = r.name + " (STA " + r.sta + ")";
-          sel.appendChild(o);
+          o.value = d;
+          o.textContent = d;
+          rw.appendChild(o);
         });
-        if (cur) sel.value = cur;
+        if (curw) rw.value = curw;
+        isiNama();
         render();
       }).catch(function (e) {
         document.getElementById("pzToast").textContent = "Gagal memuat: " + e.message;
       });
     }
+    function filterAktif() { return document.getElementById("pzTanggal").value; }
+    document.getElementById("pzTerapkan").addEventListener("click", function () { load(filterAktif()); });
+    document.getElementById("pzTerkini").addEventListener("click", function () {
+      document.getElementById("pzTanggal").value = "";
+      document.getElementById("pzRiwayat").value = "";
+      load("");
+    });
+    document.getElementById("pzRiwayat").addEventListener("change", function () {
+      document.getElementById("pzTanggal").value = this.value;
+      load(this.value);
+    });
+    document.getElementById("pzRefresh").addEventListener("click", function () { load(filterAktif()); });
     document.getElementById("pzDate").value = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
     document.getElementById("pzForm").addEventListener("submit", function (ev) {
       ev.preventDefault();
@@ -124,23 +153,23 @@
       opt.body = JSON.stringify({ name: name, press: press, key: key, date: date });
       fetch(url, opt).then(function (r) { return r.json(); }).then(function (j) {
         if (!j.ok) throw new Error(j.error || "gagal");
-        var m = "? " + j.name + " tanggal " + j.date + " diperbarui: " + fmt(j.press, 2) + " m — " + j.status;
+        var m = "BERHASIL: " + j.name + " tanggal " + j.date + " diperbarui: " + fmt(j.press, 2) + " m - " + j.status;
         document.getElementById("pzToast").innerHTML = `<span style="color:#22C55E">${m} (Ru ${fmt(j.ru, 3)})</span>`;
-        load();
+        load(filterAktif());
       }).catch(function (e) {
-        document.getElementById("pzToast").innerHTML = `<span style="color:#EF4444">? ${e.message}</span>`;
+        document.getElementById("pzToast").innerHTML = `<span style="color:#EF4444">GAGAL: ${e.message}</span>`;
       });
     });
     tab.addEventListener("click", function (e) {
       e.preventDefault();
       ov.style.display = "block";
       window.scrollTo(0, 0);
-      load();
+      load(filterAktif());
     });
     document.getElementById("pzBack").addEventListener("click", function () {
       ov.style.display = "none";
     });
-    load();
+    load("");
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", siap);
   else siap();

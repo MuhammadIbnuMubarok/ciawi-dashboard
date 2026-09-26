@@ -98,21 +98,27 @@ module.exports = async (req, res) => {
       return;
     }
     let lastDate = "";
+    const semua = {};
+    Object.keys(rec).forEach(function (n) { Object.keys(rec[n]).forEach(function (d) { semua[d] = 1; }); });
+    const daftarTanggal = Object.keys(semua).sort().reverse();
+    const batas = String(q.tanggal || "");
+    const pakaiBatas = /^\d{4}-\d{2}-\d{2}$/.test(batas);
     const out = MASTER_PIEZO.map(function (r) {
       let press = r.press;
       let tanggal = "";
       const hist = rec[r.name];
       if (hist) {
         const ds = Object.keys(hist).sort();
-        if (ds.length) {
-          press = hist[ds[ds.length - 1]];
-          tanggal = ds[ds.length - 1];
-          if (tanggal > lastDate) lastDate = tanggal;
+        const pilih = pakaiBatas ? ds.filter(function (d) { return d <= batas; }) : ds;
+        if (pilih.length) {
+          press = hist[pilih[pilih.length - 1]];
+          tanggal = pilih[pilih.length - 1];
         }
+        if (ds.length && ds[ds.length - 1] > lastDate) lastDate = ds[ds.length - 1];
       }
       const h = hitung(r, press);
       return { sta: r.sta, name: r.name, tip: r.tip, top: r.top, gamma: r.gamma, press: press, izin: r.izin, tanggal: tanggal, ru: h.ru, status: h.status };
     });
-    res.json({ terakhir: lastDate, data: out });
+    res.json({ terakhir: lastDate, sesuai: pakaiBatas ? batas : "", daftarTanggal: daftarTanggal, data: out });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
