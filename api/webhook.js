@@ -21,13 +21,13 @@ export default async (req, ctx) => {
       await fetch(api + "sendMessage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
     };
     const menu = { inline_keyboard: [
-      [{ text: "Update Lagi", callback_data: "/update" }, { text: "Status Siaga", callback_data: "/status" }],
-      [{ text: "CCTV", callback_data: "/cctv" }, { text: "Bantuan", callback_data: "/bantuan" }]
+      [{ text: "🔄 Update Lagi", callback_data: "/update" }, { text: "🚨 Status Siaga", callback_data: "/status" }],
+      [{ text: "📷 CCTV", callback_data: "/cctv" }, { text: "❓ Bantuan", callback_data: "/bantuan" }]
     ] };
     try {
       if (cbId) await fetch(api + "answerCallbackQuery", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ callback_query_id: cbId }) });
       if (text === "/start" || text === "/bantuan") {
-        await send("Bot UPB Update - Bendungan Ciawi\n/update = laporan terkini (foto + angka)\n/status = status siaga dan TMA\n/cctv = foto mata CCTV\n/bantuan = menu ini", menu);
+        await send("🛰️ Bot UPB Update - Bendungan Ciawi\n📊 /update = laporan terkini (foto + angka)\n🚦 /status = status siaga dan TMA\n📷 /cctv = foto mata CCTV\n📖 /bantuan = menu ini", menu);
       } else if (text === "/update" || text === "/status" || text === "/cctv") {
         ctx.waitUntil((async function () {
           const r = await fetch("https://ciawi-dashboard.vercel.app/api/telegram?cuaca=-", { cache: "no-store" });
