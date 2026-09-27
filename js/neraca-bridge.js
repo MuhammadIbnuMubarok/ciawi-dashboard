@@ -82,7 +82,7 @@
         if (typeof computeLiveNeraca === "function" && L.tmaIn !== undefined && L.tmaOut !== undefined) {
           try {
             var lr = computeLiveNeraca(L.tmaIn, L.tmaOut, 0);
-            if (lr) { var ks2 = Object.keys(lr); for (var z=0;z<ks2.length;z++){ if (L[ks2[z]] === undefined) L[ks2[z]] = lr[ks2[z]]; } }
+            if (lr) { var ks2 = Object.keys(lr); for (var z=0;z<ks2.length;z++){ if (L[ks2[z]] === undefined) L[ks2[z]] = lr[ks2[z]]; } if (L.bukaan === undefined && L.F !== undefined) L.bukaan = L.F; }
           } catch(e){}
         }
         rows.push(norm(L, L.no || (200000+b+1), "LIVE"));
