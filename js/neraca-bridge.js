@@ -5,8 +5,9 @@
     var tables = document.querySelectorAll("table");
     for (var i=0;i<tables.length;i++){ var tt = tables[i].textContent || ""; if (tt.indexOf("QOUT KONDUIT") >= 0 && tt.indexOf("REDUKSI") >= 0) { tb = tables[i].querySelector("tbody"); break; } }
     if (!tb) return;
-    var panel = tb.closest("section") || tb.closest("div");
-    var ins = panel ? panel.querySelectorAll("input[type=date]") : [];
+    var ins = [];
+    var all = document.querySelectorAll("input[type=date]");
+    for (var d=0;d<all.length;d++){ var el=all[d]; if (el.closest("#pzOverlay") || el.closest("#rtsOverlay")) continue; ins.push(el); }
     var dari = ins[0] || null, sd = ins[1] || null;
     var pageSizeSel = document.getElementById("page-size-select");
     var state = { page: 1 };
@@ -29,7 +30,7 @@
       for (var a=0;a<REAL_DATA.length;a++){
         var r = REAL_DATA[a];
         if (!r || !r.tanggal) continue;
-        rows.push({ no: a+1, tanggal: String(r.tanggal).slice(0,10), jam: r.jam || "-", elevasi: r.elevasi, sedimen: r.sedimen, bukaan: null, volume: (r.vol!==undefined?r.vol:r.volume), qk: null, qs: null, qt: r.qout, qin: r.qin, red: (r.qin!==undefined&&r.qout!==undefined?(r.qin-r.qout):null), status: null, tag: "NERACA" });
+        rows.push({ no: a+1, tanggal: String(r.tanggal).slice(0,10), jam: r.jam || "-", elevasi: r.elevasi, sedimen: r.sedimen, bukaan: (r.bukaan_konduit!==undefined?r.bukaan_konduit:r.bukaan), volume: (r.volume!==undefined?r.volume:r.vol), qk: r.qout_konduit, qs: r.qout_spillway, qt: (r.qout_total!==undefined?r.qout_total:r.qout), qin: r.qin, red: r.reduksi, status: r.status, tag: "NERACA" });
       }
       var lv = liveRows();
       for (var b=0;b<lv.length;b++){
