@@ -90,6 +90,12 @@
       rows.sort(function(x,y){ return x.tanggal<y.tanggal?1:(x.tanggal>y.tanggal?-1:0); });
       return rows;
     }
+    function probeBukaan(qk, elev){
+      if (qk===null||qk===undefined) return null;
+      var names = ["bukaanKonduit","hitungBukaan","bukaanDariQ","konduitBukaan","ratingBukaan","bukaanFromQout","qoutToBukaan","bukaanK"];
+      for (var i=0;i<names.length;i++){ var f = window[names[i]]; if (typeof f === "function") { try { var v = f(qk, elev); if (typeof v === "number" && !isNaN(v)) return v; } catch(e){} } }
+      return null;
+    }
     function fmt(x,d){ if (x===null||x===undefined||isNaN(x)) return "-"; var p=Math.pow(10,d||2); return (Math.round(x*p)/p).toLocaleString("id-ID",{minimumFractionDigits:0,maximumFractionDigits:d||2}); }
     function render(){
       var all = unified();
@@ -104,7 +110,11 @@
       var html = "";
       for (var i=0;i<slice.length;i++){
         var r = slice[i];
-        html += "<tr>" + "<td class=\"py-2 px-3\">" + r.no + " <span style=\"font-size:9px;opacity:.55\">" + r.tag + "</span></td>" + "<td class=\"py-2 px-3\">" + r.tanggal + "</td>" + "<td class=\"py-2 px-3\">" + (r.jam||"-") + "</td>" + "<td class=\"py-2 px-3\">" + fmt(r.elevasi) + "</td>" + "<td class=\"py-2 px-3\">" + fmt(r.sedimen) + "</td>" + "<td class=\"py-2 px-3\">" + fmt(r.bukaan) + "</td>" + "<td class=\"py-2 px-3\">" + fmt(r.volume) + "</td>" + "<td class=\"py-2 px-3\">" + fmt(r.qk) + "</td>" + "<td class=\"py-2 px-3\">" + fmt(r.qs) + "</td>" + "<td class=\"py-2 px-3\">" + fmt(r.qt) + "</td>" + "<td class=\"py-2 px-3\">" + fmt(r.qin) + "</td>" + "<td class=\"py-2 px-3\">" + fmt(r.red) + "</td>" + "<td class=\"py-2 px-3\">" + (r.status || "-") + "</td>" + "</tr>";
+        var F = (typeof fmt2==="function")?fmt2:fmt;
+        var st = (typeof statusBadge==="function" && r.status) ? statusBadge(r.status) : (r.status || "-");
+        var bk = r.bukaan;
+        if (bk===null || bk===undefined) bk = probeBukaan(r.qk, r.elevasi);
+        html += "<tr>" + "<td class=\"py-2 px-3\">" + r.no + " <span style=\"font-size:9px;opacity:.55\">" + r.tag + "</span></td>" + "<td class=\"py-2 px-3\">" + r.tanggal + "</td>" + "<td class=\"py-2 px-3\">" + (r.jam||"-") + "</td>" + "<td class=\"py-2 px-3\">" + F(r.elevasi) + "</td>" + "<td class=\"py-2 px-3\">" + F(r.sedimen) + "</td>" + "<td class=\"py-2 px-3\">" + F(bk) + "</td>" + "<td class=\"py-2 px-3\">" + F(r.volume) + "</td>" + "<td class=\"py-2 px-3\">" + F(r.qk) + "</td>" + "<td class=\"py-2 px-3\">" + F(r.qs) + "</td>" + "<td class=\"py-2 px-3\">" + F(r.qt) + "</td>" + "<td class=\"py-2 px-3\">" + F(r.qin) + "</td>" + "<td class=\"py-2 px-3\">" + F(r.red) + "</td>" + "<td class=\"py-2 px-3\">" + st + "</td>" + "</tr>";
       }
       if (!slice.length) html = "<tr><td colspan=\"13\" style=\"padding:24px;text-align:center\">Tidak ada data pada rentang ini</td></tr>";
       tb.innerHTML = html;
