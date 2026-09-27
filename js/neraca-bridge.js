@@ -63,13 +63,11 @@
       var bd = document.getElementById("tbl-badge-summary");
       if (bd) bd.textContent = rows.length + " REKAMAN (NERACA+LIVE)";
       var pg = document.getElementById("tbl-pagination");
-      if (pg) {
-        var h = "";
-        h += "<button id=\"btn-prev-page\" onclick=\"bridgePage(-1)\"" + (state.page<=1?" disabled":"") + "> Sebelumnya</button> ";
-        h += "<span>" + state.page + " / " + pages + "</span> ";
-        h += "<button id=\"btn-next-page\" onclick=\"bridgePage(1)\"" + (state.page>=pages?" disabled":"") + "> Selanjutnya</button>";
-        pg.innerHTML = h;
-      }
+      if (pg) { pg.innerHTML = "<span>" + state.page + " / " + pages + "</span>"; }
+      var bp = document.getElementById("btn-prev-page");
+      if (bp) { bp.onclick = function(){ bridgePage(-1); }; bp.disabled = state.page <= 1; }
+      var bn = document.getElementById("btn-next-page");
+      if (bn) { bn.onclick = function(){ bridgePage(1); }; bn.disabled = state.page >= pages; }
     }
     window.bridgePage = function(d){ state.page += d; render(); };
     if (dari) dari.addEventListener("change", function(){ state.page=1; render(); });
