@@ -61,7 +61,7 @@
       var qt = pick(r, ["total","qoutt"]);
       var qin = pick(r, ["qin","inflow","masuk"], ["qout"]);
       var red = pick(r, ["reduksi","redaman","reduction"]);
-      var volume = pick(r, ["volume","tampungan"]);
+      var volume = pick(r, ["volume","tampungan","vol"]);
       var status = picks(r, ["status","kondisi"]) || null;
       if (qt === null && qk !== null && qs !== null) qt = qk + qs;
       if (qs === null && qt !== null && qk !== null) qs = qt - qk;
@@ -79,6 +79,12 @@
       var lv = liveRows();
       for (var b=0;b<lv.length;b++){
         var L = lv[b];
+        if (typeof computeLiveNeraca === "function" && L.tmaIn !== undefined && L.tmaOut !== undefined) {
+          try {
+            var lr = computeLiveNeraca(L.tmaIn, L.tmaOut, 0);
+            if (lr) { var ks2 = Object.keys(lr); for (var z=0;z<ks2.length;z++){ if (L[ks2[z]] === undefined) L[ks2[z]] = lr[ks2[z]]; } }
+          } catch(e){}
+        }
         rows.push(norm(L, L.no || (200000+b+1), "LIVE"));
       }
       rows.sort(function(x,y){ return x.tanggal<y.tanggal?1:(x.tanggal>y.tanggal?-1:0); });
