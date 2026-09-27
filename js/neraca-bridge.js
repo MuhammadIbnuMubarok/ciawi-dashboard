@@ -5,12 +5,17 @@
     var tables = document.querySelectorAll("table");
     for (var i=0;i<tables.length;i++){ var tt = tables[i].textContent || ""; if (tt.indexOf("QOUT KONDUIT") >= 0 && tt.indexOf("REDUKSI") >= 0) { tb = tables[i].querySelector("tbody"); break; } }
     if (!tb) return;
+    var tbl = tb.closest("table");
+    if (tbl) tbl.classList.add("tbl-rapi");
     var ins = [];
     var all = document.querySelectorAll("input[type=date]");
     for (var d=0;d<all.length;d++){ var el=all[d]; if (el.closest("#pzOverlay") || el.closest("#rtsOverlay")) continue; ins.push(el); }
     var dari = ins[0] || null, sd = ins[1] || null;
     var pageSizeSel = document.getElementById("page-size-select");
     var state = { page: 1 };
+    var st2 = document.createElement("style");
+    st2.textContent = ".tbl-rapi{table-layout:fixed;width:100%;} .tbl-rapi th{white-space:normal;vertical-align:middle;} .tbl-rapi td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;} .tbl-rapi td:nth-child(1){width:86px;} .tbl-rapi td:nth-child(2){width:96px;} .tbl-rapi td:nth-child(3){width:64px;} .tbl-rapi td:nth-child(13){width:92px;}";
+    document.head.appendChild(st2);
     function liveRows(){
       var out = [];
       for (var k=0;k<localStorage.length;k++){
