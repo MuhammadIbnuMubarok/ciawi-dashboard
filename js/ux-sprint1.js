@@ -18,9 +18,9 @@
     els.forEach(function (el) {
       if (el.children.length === 0) {
         var t = (el.textContent || "").trim();
-        if (t === "OFFLINE") {
+        if (t === "OFFLINE" || t === "HULU TERPUTUS" || t.indexOf("SUMBER:") === 0) {
 
-          el.style.opacity = "0.8";
+          el.textContent = ""; el.style.display = "none";
         }
       }
     });
