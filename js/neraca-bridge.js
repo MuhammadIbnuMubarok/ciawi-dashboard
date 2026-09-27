@@ -25,17 +25,61 @@
       }
       return out;
     }
+    function pick(r, pats, excl) {
+      var ks = Object.keys(r);
+      for (var i=0;i<pats.length;i++){
+        for (var k=0;k<ks.length;k++){
+          var key = ks[k].toLowerCase();
+          if (key.indexOf(pats[i]) < 0) continue;
+          var bad = false;
+          if (excl) { for (var x=0;x<excl.length;x++){ if (key.indexOf(excl[x]) >= 0) { bad = true; break; } } }
+          if (bad) continue;
+          var v = parseFloat(String(r[ks[k]]).replace(",","."));
+          if (!isNaN(v)) return v;
+        }
+      }
+      return null;
+    }
+    function picks(r, pats) {
+      var ks = Object.keys(r);
+      for (var i=0;i<pats.length;i++){
+        for (var k=0;k<ks.length;k++){
+          var key = ks[k].toLowerCase();
+          if (key.indexOf(pats[i]) >= 0) { var v = String(r[ks[k]]); if (v) return v; }
+        }
+      }
+      return null;
+    }
+    function norm(r, no, tag) {
+      var tanggal = picks(r, ["tanggal","date"]) || "";
+      var jam = picks(r, ["jam","waktu"]) || "-";
+      var elevasi = pick(r, ["elevasi","elev","tma"], ["izin"]);
+      var sedimen = pick(r, ["sedimen","sediment"]);
+      var bukaan = pick(r, ["bukaan","opening","gate"]);
+      var qs = pick(r, ["spillway","pelimpah","qouts"]);
+      var qk = pick(r, ["konduit","qoutk"], ["bukaan","spillway","total"]);
+      var qt = pick(r, ["total","qoutt"]);
+      var qin = pick(r, ["qin","inflow","masuk"], ["qout"]);
+      var red = pick(r, ["reduksi","redaman","reduction"]);
+      var volume = pick(r, ["volume","tampungan"]);
+      var status = picks(r, ["status","kondisi"]) || null;
+      if (qt === null && qk !== null && qs !== null) qt = qk + qs;
+      if (qs === null && qt !== null && qk !== null) qs = qt - qk;
+      if (qk === null && qt !== null && qs !== null) qk = qt - qs;
+      if (red === null && qin !== null && qt !== null) red = qin - qt;
+      return { no: no, tanggal: String(tanggal).slice(0,10), jam: jam, elevasi: elevasi, sedimen: sedimen, bukaan: bukaan, volume: volume, qk: qk, qs: qs, qt: qt, qin: qin, red: red, status: status, tag: tag };
+    }
     function unified(){
       var rows = [];
       for (var a=0;a<REAL_DATA.length;a++){
         var r = REAL_DATA[a];
         if (!r || !r.tanggal) continue;
-        rows.push({ no: a+1, tanggal: String(r.tanggal).slice(0,10), jam: r.jam || "-", elevasi: r.elevasi, sedimen: r.sedimen, bukaan: (r.bukaan_konduit!==undefined?r.bukaan_konduit:r.bukaan), volume: (r.volume!==undefined?r.volume:r.vol), qk: r.qout_konduit, qs: r.qout_spillway, qt: (r.qout_total!==undefined?r.qout_total:r.qout), qin: r.qin, red: r.reduksi, status: r.status, tag: "NERACA" });
+        rows.push(norm(r, a+1, "NERACA"));
       }
       var lv = liveRows();
       for (var b=0;b<lv.length;b++){
         var L = lv[b];
-        rows.push({ no: L.no || (200000+b+1), tanggal: String(L.tanggal).slice(0,10), jam: L.jam || "-", elevasi: L.elevasi, sedimen: L.sedimen, bukaan: L.bukaan, volume: (L.vol!==undefined?L.vol:L.volume), qk: L.qoutK, qs: (L.qoutS!==undefined?L.qoutS:L.qout_spillway), qt: (L.qoutT!==undefined?L.qoutT:L.qout_total), qin: L.qin, red: L.reduksi, status: L.status, tag: "LIVE" });
+        rows.push(norm(L, L.no || (200000+b+1), "LIVE"));
       }
       rows.sort(function(x,y){ return x.tanggal<y.tanggal?1:(x.tanggal>y.tanggal?-1:0); });
       return rows;
