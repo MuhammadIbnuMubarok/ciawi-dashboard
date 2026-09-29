@@ -33,7 +33,9 @@ export default async (req) => {
     const contents = [];
     msgs.forEach(function (m) { contents.push({ role: m.role === "model" ? "model" : "user", parts: [{ text: String(m.text || "").slice(0, 8000) }] }); });
     const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify({ systemInstruction: { parts: [{ text: sys }] }, contents: contents, generationConfig: { temperature: 0.4 } }) });
-    const j = await r.json().catch(function () { return null; });
+    const raw = await r.text();
+    let j = null; try { j = JSON.parse(raw); } catch (e) { j = null; }
+    if (!r.ok) return new Response(JSON.stringify({ ok: false, error: "upstream " + r.status + ": " + raw.slice(0, 200) }), { status: 502, headers: { "Content-Type": "application/json" } });
     reply = j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts ? j.candidates[0].content.parts.map(function (p) { return p.text || ""; }).join("") : null;
   }
   if (!reply) return new Response(JSON.stringify({ ok: false, error: "mesin AI tidak membalas" }), { status: 502 });
