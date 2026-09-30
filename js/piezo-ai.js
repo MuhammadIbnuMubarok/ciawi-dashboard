@@ -3,8 +3,8 @@
   function build(){
     if(!DATA) return "";
     var L=["PIEZOMETER & CURAH HUJAN ARSIP (sumber MONITORING V W Pizometer, "+DATA.meta.sheets.length+" sheet: "+DATA.meta.sheets.join(", ")+"):"];
-    L.push("Interpretasi terkini "+DATA.instrumen.length+" alat:");
-    DATA.instrumen.forEach(function(o){ L.push(o.kode+" STA"+o.sta+" tip="+o.elevTip+" top="+o.elevTop+" tekanan="+o.tekanan+"mH2O elvTekanan="+o.elvTekanan+" Ru="+o.ru+" ijin="+o.elvIjin+" "+o.ket); });
+    L.push("Interpretasi terkini "+(DATA.instrumen || []).length+" alat:");
+    (DATA.instrumen || []).forEach(function(o){ L.push(o.kode+" STA"+o.sta+" tip="+o.elevTip+" top="+o.elevTop+" tekanan="+o.tekanan+"mH2O elvTekanan="+o.elvTekanan+" Ru="+o.ru+" ijin="+o.elvIjin+" "+o.ket); });
     var h=DATA.hujan; if(h&&h.length){ var tot=0, mx=h[0]; h.forEach(function(x){ tot+=x.mm; if(x.mm>mx.mm) mx=x; }); L.push("Hujan: "+h.length+" hari "+h[0].tanggal+" s/d "+h[h.length-1].tanggal+", total="+tot.toFixed(1)+"mm, harian maks="+mx.mm+"mm pada "+mx.tanggal); }
     var codes=Object.keys(DATA.seri).filter(function(k){ return k.charAt(0)!=="_"; });
     L.push("Seri bacaan "+codes.length+" instrumen:");
