@@ -1,6 +1,6 @@
 (function () {
   function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-  var host = null, log = null, inp = null, btn = null, fab = null, hist = [];
+  var log = null, inp = null, btn = null, hist = [];
   function buildBrief(){
     var lines = [];
     lines.push("WAKTU SEKARANG: " + new Date().toString());
@@ -27,10 +27,7 @@
       var last = d[d.length-1];
       lines.push("REKAM TERAKHIR: " + last.tanggal + " " + (last.jam||"") + " elev=" + last.elevasi + " vol=" + (last.vol!==undefined?last.vol:last.volume) + " qout=" + (last.qout_total!==undefined?last.qout_total:last.qout) + " qin=" + last.qin + " status=" + (last.status||"-"));
     }
-    var getter = function (id) {
-      var el = document.getElementById(id);
-      return el ? (el.textContent || "").trim() : null;
-    };
+    var getter = function (id) { var el = document.getElementById(id); return el ? (el.textContent || "").trim() : null; };
     var le = getter("live-elv"), lv = getter("live-vol"), lq = getter("live-qout"), lr = getter("live-red"), ls = getter("live-status");
     if (le) lines.push("LIVE SEKARANG: ELV=" + le + " VOL=" + lv + " QOUT=" + lq + " RED=" + lr + " STATUS=" + ls);
     return lines.join("\n");
@@ -60,27 +57,20 @@
       .catch(function () { think.remove(); addBubble("model", "Jaringan terputus - coba lagi."); });
   }
   function siap(){
-    if (document.getElementById("ai-fab")) return;
-    fab = document.createElement("button");
-    fab.id = "ai-fab";
-    fab.textContent = "AI ANALIS";
-    fab.style.cssText = "position:fixed;z-index:95;padding:10px 14px;border-radius:999px;background:#0e7490;color:#e0f2fe;font-weight:700;border:1px solid #22d3ee;cursor:grab;touch-action:none;user-select:none;";
-    host = document.createElement("div");
-    host.id = "ai-host";
-    host.style.cssText = "position:fixed;z-index:95;width:340px;max-width:92vw;height:420px;background:#0b132b;border:1px solid #1c2a4b;border-radius:12px;display:none;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,.5);";
-    host.innerHTML = '<div style="padding:8px 10px;border-bottom:1px solid #1c2a4b;display:flex;justify-content:space-between;align-items:center;"><b style="color:#7dd3fc;font-size:12px;">AI ANALIS BENDUNGAN CIAWI</b><button id="ai-close" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:14px;">✕</button></div><div id="ai-log" style="flex:1;overflow-y:auto;padding:8px;"></div><div style="display:flex;gap:6px;padding:8px;border-top:1px solid #1c2a4b;"><input id="ai-inp" placeholder="Tanya apa saja..." style="flex:1;background:#111c33;border:1px solid #1c2a4b;color:#e2e8f0;border-radius:8px;padding:8px;font-size:12px;" /><button id="ai-send" style="background:#0e7490;border:none;color:#e0f2fe;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:700;">➤</button></div>';
-    document.body.appendChild(fab);
-    document.body.appendChild(host);
+    if (document.getElementById("ai-card")) return;
+    var card = document.createElement("section");
+    card.id = "ai-card";
+    card.style.cssText = "width:min(980px,96vw);margin:18px auto 90px auto;background:#0b132b;border:1px solid #1c2a4b;border-radius:12px;padding:12px;";
+    card.innerHTML = '<b style="color:#7dd3fc;font-size:13px;">AI ANALIS BENDUNGAN CIAWI</b><div id="ai-log" style="height:300px;overflow-y:auto;padding:8px;"></div><div style="display:flex;gap:6px;padding:8px 0 0 0;"><input id="ai-inp" placeholder="Tanya apa saja..." style="flex:1;background:#111c33;border:1px solid #1c2a4b;color:#e2e8f0;border-radius:8px;padding:8px;font-size:12px;" /><button id="ai-send" style="background:#0e7490;border:none;color:#e0f2fe;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:700;">KIRIM</button></div>';
+    document.body.appendChild(card);
     log = document.getElementById("ai-log");
     inp = document.getElementById("ai-inp");
     btn = document.getElementById("ai-send");
-    var drag = null;
-    document.getElementById("ai-close").onclick = function () { host.style.display = "none"; };
     btn.onclick = kirim;
     inp.addEventListener("keydown", function (ev) { if (ev.key === "Enter") kirim(); });
     addBubble("model", "Halo! Saya AI Analis Bendungan Ciawi. Tanya apa saja - data neraca, piezometer, banjir, atau hal lain di luar bendungan. Saya menjawab dari data riil bila menyangkut bendungan.");
   }
-  function coba(){ try { siap(); } catch (e) { console.error("AI ANALIS gagal lahir: " + (e && e.message)); } }
+  function coba(){ try { siap(); if (!document.getElementById("ai-card")) { document.title = "AI: siap selesai tanpa kartu"; } } catch (e) { document.title = "AI GAGAL: " + (e && e.message); console.error("AI ANALIS gagal lahir: " + (e && e.message)); } }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", coba); else coba();
-  setTimeout(function(){ if (!document.getElementById("ai-fab")) { try { siap(); } catch (e) { console.error("AI ANALIS ulang gagal: " + (e && e.message)); } } }, 2500);
+  setTimeout(function(){ if (!document.getElementById("ai-card")) { try { siap(); } catch (e) { document.title = "AI ULANG GAGAL: " + (e && e.message); } if (!document.getElementById("ai-card")) { document.title = "AI KARTU ABSENT SETELAH ULANG"; } } }, 2500);
 })();
