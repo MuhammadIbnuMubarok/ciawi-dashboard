@@ -38,6 +38,6 @@ export default async (req) => {
     if (!r.ok) return new Response(JSON.stringify({ ok: false, error: "upstream " + r.status + ": " + raw.slice(0, 200) }), { status: 502, headers: { "Content-Type": "application/json" } });
     reply = j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts ? j.candidates[0].content.parts.map(function (p) { return p.text || ""; }).join("") : null;
   }
-  if (!reply) return new Response(JSON.stringify({ ok: false, error: "mesin AI tidak membalas" }), { status: 502 });
+  if (!reply) return new Response(JSON.stringify({ ok: false, error: "mesin AI tidak membalas" }), { status: 200 });
   return new Response(JSON.stringify({ ok: true, reply: reply }), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 };
