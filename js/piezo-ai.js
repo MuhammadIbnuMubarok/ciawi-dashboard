@@ -24,6 +24,7 @@
     g.fillStyle="#7dd3fc"; g.font="11px monospace"; g.fillText(code+"  min="+mn.toFixed(1)+" max="+mx.toFixed(1)+" terakhir="+pts[pts.length-1][1], 44, 14);
     g.fillStyle="#f59e0b"; g.fillText("batang = curah hujan (maks "+hmx+"mm)", W-230, 14);
   }
+  function tombolArsip(){ if (document.getElementById("btn-arsip-scroll")) return; var tgt = null; var bs = document.querySelectorAll("button"); for (var i = 0; i < bs.length; i++) { if ((bs[i].textContent || "").trim() === "DASHBOARD") tgt = bs[i]; } var card = document.getElementById("piezo-arsip-card"); if (!tgt || !card) return; var nb = document.createElement("button"); nb.id = "btn-arsip-scroll"; nb.textContent = "GRAFIK ARSIP"; nb.style.cssText = tgt.style.cssText; nb.onclick = function () { card.scrollIntoView({ behavior: "smooth", block: "start" }); }; tgt.parentNode.insertBefore(nb, tgt.nextSibling); }
   function render(){
     if (document.getElementById("piezo-arsip-card")) return;
     var codes=Object.keys(DATA.seri).filter(function(k){ return k.charAt(0)!=="_"; });
@@ -38,7 +39,7 @@
     sel.value=codes[0]; draw(card.querySelector("#pz-cv"), codes[0]); card.querySelector("#pz-info").textContent=(DATA.seri[codes[0]]||[]).length+" bacaan";
   }
   function siap(){
-    fetch("data/piezo-arsip.json?v=1").then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){ DATA=j; BRIEF=build(); render(); var orig=window.fetch; window.fetch=function(u,o){ try{ if(typeof u==="string"&&u.indexOf("/api/ai")>=0&&o&&o.body){ var b=JSON.parse(o.body); b.brief=(b.brief||"")+"\n"+BRIEF; o=Object.assign({},o,{body:JSON.stringify(b)}); } }catch(e){} return orig.call(window,u,o); }; }).catch(function(){});
+    fetch("data/piezo-arsip.json?v=1").then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){ DATA=j; BRIEF=build(); render(); tombolArsip(); if (!window._arsipBtnTimer) { window._arsipBtnTimer = setInterval(tombolArsip, 4000); } var orig=window.fetch; window.fetch=function(u,o){ try{ if(typeof u==="string"&&u.indexOf("/api/ai")>=0&&o&&o.body){ var b=JSON.parse(o.body); b.brief=(b.brief||"")+"\n"+BRIEF; o=Object.assign({},o,{body:JSON.stringify(b)}); } }catch(e){} return orig.call(window,u,o); }; }).catch(function(){});
   }
   if (document.readyState==="loading") document.addEventListener("DOMContentLoaded", siap); else siap();
 })();
