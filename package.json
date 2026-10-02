@@ -1,8 +1,8 @@
 ﻿{
-    "name":  "ciawi-dashboard",
-    "version":  "1.0.0",
-    "type":  "module",
-    "scripts":  {
-                    "dev":  "vercel dev"
-                }
+  "name": "ciawi-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev"
+  }
 }
