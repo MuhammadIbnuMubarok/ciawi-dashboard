@@ -1,5 +1,6 @@
-// api/piezometer.js v2 - master + rekaman harian; GET terkini bertanggal; POST bertanggal; ?format=csv unduh riwayat
-const { put, get } = require("@vercel/blob");
+﻿// api/piezometer.js v2 - ES Module version
+import { put, get } from "@vercel/blob";
+
 const MASTER_PIEZO = [
   { sta: "310", name: "PPU1", tip: 475.00, top: 551.37, gamma: 1.757, press: 24.79, izin: 542.09 },
   { sta: "310", name: "PPD2", tip: 475.00, top: 551.37, gamma: 1.757, press: 28.35, izin: 542.09 },
@@ -33,25 +34,31 @@ const MASTER_PIEZO = [
   { sta: "377.5", name: "PTU15", tip: 520.00, top: 535.50, gamma: 1.757, press: 1.88, izin: 534.09 },
   { sta: "377.5", name: "OSP", tip: 499.50, top: 540.90, gamma: 1.757, press: 17.30, izin: 535.93 }
 ];
+
 const STORE = "piezo/records.json";
+
 function hitung(r, press) {
   const ru = press / ((r.top - r.tip) * r.gamma);
   const status = (r.tip + press) < r.izin ? "AMAN" : "HATI-HATI";
   return { ru: ru, status: status };
 }
+
 function hariIni() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 }
+
 async function bacaRecords() {
   try {
     const b = await get(STORE, { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
     return JSON.parse(await new Response(b.stream).text());
   } catch (e) { return {}; }
 }
-module.exports = async (req, res) => {
+
+export default async function handler(req, res) {
   try {
     const q = req.query || {};
     const rec = await bacaRecords();
+    
     if (q.format === "csv") {
       const lines = ["tanggal;sta;nama;tip;top;gamma;press;izin;ru;status"];
       Object.keys(rec).sort().forEach(function (n) {
@@ -67,6 +74,7 @@ module.exports = async (req, res) => {
       res.status(200).send(lines.join("\n"));
       return;
     }
+    
     if (req.method === "POST") {
       let body = {};
       try {
@@ -79,30 +87,52 @@ module.exports = async (req, res) => {
           if (raw) body = JSON.parse(raw);
         }
       } catch (e) { body = {}; }
+      
       const key = String(body.key || q.key || "");
       if (body.name === undefined && q.name !== undefined) body.name = q.name;
       if (body.press === undefined && q.press !== undefined) body.press = q.press;
       if (body.date === undefined && q.date !== undefined) body.date = q.date;
-      if (!process.env.CCTV_UPLOAD_KEY || key !== process.env.CCTV_UPLOAD_KEY) { res.status(403).json({ error: "kunci salah" }); return; }
+      
+      if (!process.env.CCTV_UPLOAD_KEY || key !== process.env.CCTV_UPLOAD_KEY) { 
+        res.status(403).json({ error: "kunci salah" }); 
+        return; 
+      }
+      
       const row = MASTER_PIEZO.find(function (r) { return r.name === String(body.name); });
       const press = Number(body.press);
-      if (!row) { res.status(404).json({ error: "nama instrumen tidak dikenal" }); return; }
-      if (!isFinite(press) || press < 0 || press > 200) { res.status(400).json({ error: "press tidak valid" }); return; }
+      
+      if (!row) { 
+        res.status(404).json({ error: "nama instrumen tidak dikenal" }); 
+        return; 
+      }
+      
+      if (!isFinite(press) || press < 0 || press > 200) { 
+        res.status(400).json({ error: "press tidak valid" }); 
+        return; 
+      }
+      
       const date = String(body.date || hariIni());
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { res.status(400).json({ error: "tanggal harus YYYY-MM-DD" }); return; }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { 
+        res.status(400).json({ error: "tanggal harus YYYY-MM-DD" }); 
+        return; 
+      }
+      
       if (!rec[row.name]) rec[row.name] = {};
       rec[row.name][date] = Math.round(press * 100) / 100;
       await put(STORE, JSON.stringify(rec), { contentType: "application/json", access: "private", allowOverwrite: true });
+      
       const h = hitung(row, press);
       res.json({ ok: true, name: row.name, date: date, press: rec[row.name][date], ru: h.ru, status: h.status });
       return;
     }
+    
     let lastDate = "";
     const semua = {};
     Object.keys(rec).forEach(function (n) { Object.keys(rec[n]).forEach(function (d) { semua[d] = 1; }); });
     const daftarTanggal = Object.keys(semua).sort().reverse();
     const batas = String(q.tanggal || "");
     const pakaiBatas = /^\d{4}-\d{2}-\d{2}$/.test(batas);
+    
     const out = MASTER_PIEZO.map(function (r) {
       let press = r.press;
       let tanggal = "";
@@ -119,6 +149,9 @@ module.exports = async (req, res) => {
       const h = hitung(r, press);
       return { sta: r.sta, name: r.name, tip: r.tip, top: r.top, gamma: r.gamma, press: press, izin: r.izin, tanggal: tanggal, ru: h.ru, status: h.status };
     });
+    
     res.json({ terakhir: lastDate, sesuai: pakaiBatas ? batas : "", daftarTanggal: daftarTanggal, data: out });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-};
+  } catch (e) { 
+    res.status(500).json({ error: e.message }); 
+  }
+}
