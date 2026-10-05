@@ -304,15 +304,56 @@ function sampleByMinutes(d){const MIN={"5m":1,"15m":1,"30m":1,"1h":1,"6h":5,"24h
 function todayISO(){const o={};new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit",hour12:false}).formatToParts(new Date()).forEach(p=>{o[p.type]=p.value;});return o.year+"-"+o.month+"-"+o.day;}
 function resetDateRangeFilter(){const t=todayISO();const ds=$("date-range-start");const de=$("date-range-end");if(ds)ds.value=t;if(de)de.value=t;applyFilters();}
 document.addEventListener("DOMContentLoaded",function(){const t=todayISO();const ds=$("date-range-start");const de=$("date-range-end");if(ds)ds.value=t;if(de)de.value=t;applyFilters();});
-function renderBars(d){const el=$("#inflow-outflow-bars");if(!el)return;
-if(d.qNull){el.innerHTML='<div class="text-xs text-on-surface-variant py-6">Tidak ada data Q pada skenario ini.</div>';return;}
-const mx=Math.max.apply(null,d.inflows.concat(d.outflows).filter(v=>v!=null))||1;const n=d.labels.length;const step=Math.max(1,Math.ceil(n/6));
-const bars=d.labels.map((L,i)=>{const qi=d.inflows[i],qo=d.outflows[i],rd=(qi!=null&&qo!=null)?Math.max(0,qi-qo):null;
-return '<div class="flex-1 flex flex-col justify-end" style="height:100%" onclick="selectDataPoint('+i+')"><div class="w-full flex items-end justify-center gap-[2px]" style="height:100%">'+
-'<div title="Q In" style="height:'+Math.max(2,(qi||0)/mx*100)+'%" class="w-1/3 bg-[#ff8a3d] rounded-t"></div><div title="Q Out" style="height:'+Math.max(2,(qo||0)/mx*100)+'%" class="w-1/3 bg-primary rounded-t"></div>'+
-'<div title="Reduksi" style="height:'+Math.max(2,(rd||0)/mx*100)+'%" class="w-1/3 bg-[#35e0a1] rounded-t"></div></div></div>';}).join("");
-const labs=d.labels.map((L,i)=>'<div class="flex-1 text-[9px] leading-tight text-on-surface-variant whitespace-nowrap'+(i%step===0?'':' invisible')+'">'+L+'</div>').join("");
-el.innerHTML='<div class="w-full flex flex-col" style="height:100%"><div class="flex items-end gap-1" style="height:80%">'+bars+'</div><div class="flex gap-1 pt-1 border-t border-outline-variant/30 mt-1">'+labs+'</div></div>';}
+function renderBars(d){const el=$("inflow-outflow-bars");if(!el)return;
+// Skenario banjir tertentu (mis. Juli 2025) memang tidak punya Q In/Q Out
+// terekam sama sekali. Versi lama menulis pesan singkat yang praktis tidak
+// kelihatan, jadi panel tampak rusak. Sekarang: pesan jelas di tengah panel.
+if(d.qNull||!d.inflows||!d.inflows.some(v=>v!=null&&isFinite(v))){
+  el.innerHTML='<div class="absolute inset-0 flex flex-col items-center justify-center text-center px-3 gap-1">'+
+    '<div class="text-[11px] text-siaga-3 font-bold">Tidak ada data Q In / Q Out pada skenario ini</div>'+
+    '<div class="text-[10px] text-on-surface-variant">Kolom debit tidak terekam di periode terpilih — Elevasi & Volume tetap tampil di grafik utama.</div>'+
+    '<div class="text-[10px] text-primary font-bold">Pilih skenario lain atau centang lebih banyak bulan di bawah.</div></div>';
+  const s0=document.getElementById('metric-reduksi-summary');
+  if(s0)s0.textContent="Q In / Q Out tidak terekam pada skenario ini — grafik debit kosong, bukan error.";
+  return;}
+const nAda=(a)=>a.filter(v=>v!=null&&v!==""&&isFinite(v)).length;
+const nIn=nAda(d.inflows), nOut=nAda(d.outflows);
+const mx=Math.max.apply(null,d.inflows.concat(d.outflows).filter(v=>v!=null&&isFinite(v)))||1;
+const step=Math.max(1,Math.ceil(d.labels.length/6));
+// Bar untuk nilai yang tidak terekam: garis putus-putus abu-abu setinggi
+// tetap supaya kelihatan "ada slot tapi kosong", bukan 2px yang hilang.
+// Versi lama memakai Math.max(2,(qi||0)/mx*100) sehingga bar null hanya
+// 3px - praktis tidak terlihat dan tidak ada penjelasan apa pun.
+const SLOT='flex-1 w-1/3 flex items-end';
+const EMPTY='<div class="'+SLOT+' h-full"><div class="w-full h-2 rounded-t" style="background:repeating-linear-gradient(45deg,rgba(148,163,184,.35) 0 3px,transparent 3px 6px);border-top:1px dashed rgba(148,163,184,.6)"></div></div>';
+// Warna lewat inline style, bukan kelas utilitas bg-[#hex]. Kelas arbitrary
+// value Tailwind tidak selalu terkompilasi pada CSS yang di-cache browser,
+// sehingga bar jadi tak berwarna sama sekali (grafik tampak kosong).
+const WARNA={qin:"#ff8a3d",qout:"#4cd7f6",red:"#35e0a1"};
+const bar=(v,hex,tip)=> v==null||!isFinite(v) ? EMPTY
+  : '<div class="'+SLOT+' h-full" title="'+tip+'"><div class="w-full rounded-t" style="height:'+Math.max(2,(v/mx)*100)+'%;background:'+hex+'"></div></div>';
+const bars=d.labels.map((L,i)=>{
+  const qi=d.inflows[i],qo=d.outflows[i];
+  const rd=(qi!=null&&qo!=null)?Math.max(0,qi-qo):null;
+  // L sudah memuat "Sen 26 Mar 2023 16:00"; tambahkan tooltip tanggal penuh
+  // agar tanggal/bulan/tahun selalu terbaca tanpa harus hover.
+  const tgl=L.replace(/^\\S+\\s+/,"");
+  return '<div class="flex-1 flex flex-col justify-end h-full" onclick="selectDataPoint('+i+')" title="'+L+'" style="height:100%">'+
+    '<div class="w-full flex items-end justify-center gap-[2px]" style="height:100%">'+
+    bar(qi,WARNA.qin,"Q In "+tgl+" = "+(qi==null?"tidak terekam":fmt2(qi)+" m3/s"))+
+    bar(qo,WARNA.qout,"Q Out "+tgl+" = "+(qo==null?"tidak terekam":fmt2(qo)+" m3/s"))+
+    bar(rd,WARNA.red,"Reduksi "+tgl+" = "+(rd==null?"tidak terekam":fmt2(rd)+" m3/s"))+
+  '</div></div>';}).join("");
+const labs=d.labels.map((L,i)=>{
+  // Sumbu: 44 slot dalam lebar ~400px, jadi font kecil + sebagian label
+  // disembunyikan. Tanggal lengkap tetap ada di title (hover) dan tooltip bar.
+  const tgl=L.replace(/^\\S+\\s+/,"");
+  return '<div class="flex-1 text-[8px] leading-tight text-on-surface-variant text-center truncate'+(i%step===0?'':' opacity-0')+'" title="'+L+'">'+tgl+'</div>';}).join("");
+el.innerHTML='<div class="text-[10px] text-on-surface-variant text-right mb-1">Terekam: Q In '+nIn+'/'+d.labels.length+' • Q Out '+nOut+'/'+d.labels.length+' bulan</div>'+
+ '<div class="flex items-end gap-[2px]" style="height:118px">'+bars+'</div>'+
+ '<div class="flex gap-[2px] pt-1 mt-1 border-t border-outline-variant/30">'+labs+'</div>';
+const sum=document.getElementById('metric-reduksi-summary');
+if(sum) sum.textContent="Terekam Q In "+nIn+" & Q Out "+nOut+" dari "+d.labels.length+" bulan • bar bergaris = tidak terekam";}
 function tipBox(){let t=document.getElementById("hover-tip");if(!t){t=document.createElement("div");t.id="hover-tip";t.style.cssText="position:fixed;z-index:9999;pointer-events:none;display:none;background:rgba(11,19,38,.95);border:1px solid rgba(76,215,246,.4);border-radius:6px;padding:6px 8px;font-size:11px;line-height:1.5;color:#e6edf7;max-width:280px;box-shadow:0 6px 18px rgba(0,0,0,.5);";document.body.appendChild(t);}return t;}
 function tipShow(html,x,y){const t=tipBox();t.innerHTML=html;t.style.display="block";const w=t.offsetWidth,h=t.offsetHeight;let L=x+14,T=y+14;if(L+w>innerWidth-8)L=x-w-14;if(T+h>innerHeight-8)T=y-h-14;t.style.left=L+"px";t.style.top=T+"px";}
 function tipHide(){const t=document.getElementById("hover-tip");if(t)t.style.display="none";}
