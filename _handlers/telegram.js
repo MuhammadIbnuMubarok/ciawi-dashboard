@@ -36,10 +36,38 @@ export default async (req, res) => {
     const tIn = sn.tmaIn / 100, tOut = sn.tmaOut / 100;
     const elv = fmt2(504.20 + tIn);
     const outElv = fmt2(486.92 + tOut);
+    // Sukamahi: snapshot menyimpan tmaSkIn / tmaSkOut (cm). Bila belum ada di
+    // snapshot lama,SN diambil langsung dari /api/fleet agar laporan tetap
+    // lengkap untuk dua bendungan.
+    let skIn = sn.tmaSkIn != null ? sn.tmaSkIn / 100 : null;
+    let skOut = sn.tmaSkOut != null ? sn.tmaSkOut / 100 : null;
+    let skJam = sn.skJam || "";
+    if (skIn === null || skOut === null) {
+      try {
+        const fr = await fetch((process.env.CF_PAGES_URL ? "https://" + process.env.CF_PAGES_URL : "https://ciawi-scada.pages.dev") + "/api/fleet", { cache: "no-store" });
+        const fj = await fr.json();
+        for (const e of (fj && fj.telemetryjakarta) || []) {
+          if (e.dam === "BENDUNGAN SUKAMAHI") {
+            if (/INLET/.test(e.nama_alaat) && skIn === null) { skIn = e.tmaMeter; skJam = e.ReceivedTime || skJam; }
+            if (/OUTLET/.test(e.nama_alaat) && skOut === null) skOut = e.tmaMeter;
+          }
+        }
+      } catch (e) { /* biarkan null; teks akan menandai tidak tersedia */ }
+    }
     const p = {}; new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", day: "2-digit", month: "2-digit", year: "numeric" }).formatToParts(new Date(sn.ts)).forEach(function(x){ p[x.type] = x.value; });
     const st = String(sn.stIn || "normal"); const Status = st.charAt(0).toUpperCase() + st.slice(1);
     const tgl = p.day + "/" + p.month + "/" + p.year;
-    const text = "<b>📊 Update Bendungan Ciawi</b>\n" + tgl + " pukul " + sn.time + " WIB\n\n<b>Status:</b> " + Status + "\n<b>Inlet:</b> +" + elv + " (tma " + fmt2(tIn) + " m)\n<b>Outlet:</b> +" + outElv + " (tma " + fmt2(tOut) + " m)\n\n<i>Cuaca: " + cuaca + "</i>";
+    const mSk = (v) => v === null ? "—" : fmt2(v) + " m";
+    let text = "<b>📊 Update Bendungan Ciawi</b>\n" + tgl + " pukul " + sn.time + " WIB\n\n" +
+      "<b>Status:</b> " + Status + "\n" +
+      "<b>Inlet:</b> +" + elv + " (tma " + fmt2(tIn) + " m)\n" +
+      "<b>Outlet:</b> +" + outElv + " (tma " + fmt2(tOut) + " m)\n";
+    if (skIn !== null || skOut !== null) {
+      text += "\n<b>📊 Update Bendungan Sukamahi</b>\n" + tgl + (skJam ? " pukul " + skJam + " WIB" : "") + "\n" +
+        "<b>Inlet:</b> tma " + mSk(skIn) + "\n" +
+        "<b>Outlet:</b> tma " + mSk(skOut) + "\n";
+    }
+    text += "\n<i>Cuaca: " + cuaca + "</i>";
     const CAMS = [
       ["inlet", "ciawi-inlet", text],
       ["outlet", "ciawi-outlet", "<b>Outlet Ciawi (pintu)</b> — " + tgl + " " + sn.time + " WIB"],

@@ -46,27 +46,35 @@ function parseBaris(tr) {
   return { lokasi, jam, tma, debit };
 }
 
-function keEntri(d) {
+// Lokasi yang dibaca per bendungan. Upstream menulis "outlite..." (huruf 'e'
+// nyasar) untuk kedua bendungan, jadi polanya harus "/outlet|outlite/".
+const KUNCI = [
+  { key: "inlet",   lokasi: ["inletciawi"] },
+  { key: "outlet",  lokasi: ["outliteciawi", "outletciawi"] },
+];
+
+// Sukamahi ikut diambil dari sumber yang sama supaya satu perintah /update
+// bisa melaporkan kedua bendungan tanpa panggilan tambahan.
+const KUNCI_SUKAMAHI = [
+  { key: "inlet",  lokasi: ["inletsukamahi"] },
+  { key: "outlet", lokasi: ["outlitesukamahi", "outletsukamahi"] },
+];
+
+function keEntri(kunci, d, dam) {
   if (d.tma === null || !isFinite(d.tma)) return null;
-
-  // PENTING: upstream menulis "outliteciawi" (huruf 'e' nyasar) dan juga
-  // punya "awsciawi" (stak AWS, bukan bendungan). Klasifikasi harus eksplisit,
-  // bukan startsWith, atau outlet terklasifikasi jadi inlet dan AWS menimpa
-  // nilai inlet karena barisnyamdatang belakangan.
-  const loc = d.lokasi;
-  const isOutlet = /outlet|outlite/.test(loc);
-  const isInlet = /inlet/.test(loc);
-  if (!isOutlet && !isInlet) return null; // buang awsciawi & lainnya
-
+  // TMA negatif tidak mungkin secara fisis: sensor mengukur tinggi muka air
+  // di atas titik acuan. Nilai <= 0 berarti sensor tidak aktif, jadi
+  // dikembalikan null agar UI/bot menampilkan "tidak tersedia" alih-alih
+  // angka negatif yang menyesatkan.
+  if (d.tma <= 0) return null;
+  const isOutlet = /outlet|outlite/.test(d.lokasi);
+  if (!kunci.lokasi.includes(d.lokasi)) return null;
   return {
-    // Bentuk nama HARUS memuat "outlet"/"inlet" DAN "ciawi": parseFleet() di
-    // live-service.js mencocokkan dengan
-    //   name.includes('outlet') && name.includes('ciawi')
-    // milik "outliteciawi" tidak mengandung substring "ciawi", jadi outlet
-    // tidak akan pernah dikenali sebagai OUTLET.
-    nama_alaat: isOutlet ? "OUTLET BENDUNGAN CIAWI" : "INLET BENDUNGAN CIAWI",
-    nama_lokasi: loc,
+    nama_alaat: `${isOutlet ? "OUTLET" : "INLET"} ${dam}`,
+    nama_lokasi: d.lokasi,
+    dam: dam,
     WLevel: d.tma * M_KE_CM, // frontend membagi 100 -> meter
+    tmaMeter: d.tma,
     debit: d.debit === null ? "" : d.debit,
     ReceivedTime: d.jam || null,
     ReceivedDate: "",
@@ -106,16 +114,33 @@ export default async function handler(req, res) {
   const src = Buffer.from(doc).toString("utf8");
   const telemetryjakarta = [];
 
+  // Kumpulkan semua baris sekali, lalu kelompokkan ke bendungan yang cocok.
+  const semua = new Map();
   for (const m of src.matchAll(/<tr[\s\S]*?<\/tr>/gi)) {
     const d = parseBaris(m[0]);
-    if (!d || !d.lokasi.includes("ciawi")) continue; // hanya Ciawi
-    const e = keEntri(d);
-    if (e) telemetryjakarta.push(e);
+    if (d) semua.set(d.lokasi, d);
+  }
+
+  for (const k of KUNCI) {
+    for (const lok of k.lokasi) {
+      const d = semua.get(lok);
+      if (!d) continue;
+      const e = keEntri(k, d, "BENDUNGAN CIAWI");
+      if (e) telemetryjakarta.push(e);
+    }
+  }
+  for (const k of KUNCI_SUKAMAHI) {
+    for (const lok of k.lokasi) {
+      const d = semua.get(lok);
+      if (!d) continue;
+      const e = keEntri(k, d, "BENDUNGAN SUKAMAHI");
+      if (e) telemetryjakarta.push(e);
+    }
   }
 
   if (!telemetryjakarta.length) {
     res.status(502).json({
-      error: "tidak ada baris Ciawi di sumber",
+      error: "tidak ada baris Ciawi/Sukamahi di sumber",
       tanggal: (src.match(/dt=(\d{4}-\d{2}-\d{2})/) || [])[1] || null,
     });
     return;

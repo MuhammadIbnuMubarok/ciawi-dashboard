@@ -33,10 +33,14 @@ export default async (req, ctx) => {
           // Cloudflare: CF_PAGES_URL. Vercel: VERCEL_URL. Fallback ke domain Cloudflare
           // yang sekarang aktif (domain Vercel lama sudah DEPLOYMENT_DISABLED).
           const HOST = "https://" + (process.env.CF_PAGES_URL || process.env.VERCEL_URL || "ciawi-scada.pages.dev");
-          const r = await fetch(HOST + "/api/telegram?cuaca=-", { cache: "no-store" });
-          const j = await r.json().catch(function () { return null; });
-          if (j && j.ok) await send("✅ Perintah 📊 /update terkirim ke grup • isi: foto + angka", menu);
-          else await send("Gagal mengirim update: " + (j && j.error ? j.error : "tidak diketahui"), menu);
+                    const r = await fetch(HOST + "/api/update?publish=1&time=" + encodeURIComponent(wantT || "") + "&cuaca=-", { cache: "no-store" });
+                    const pub = await r.json().catch(function () { return null; });
+                    // Panggil /api/telegram supaya report lengkap (Ciawi + Sukamahi)
+                    // plus foto CCTV benar-benar terkirim, bukan hanya konfirmasi.
+                    const t = await fetch(HOST + "/api/telegram?cuaca=-&time=" + encodeURIComponent(wantT || ""), { cache: "no-store" });
+                    const j = await t.json().catch(function () { return null; });
+                    if (j && j.ok) await send("✅ Update terkirim • Ciawi + Sukamahi • foto: " + (j.foto || 0), menu);
+                    else await send("Gagal mengirim update: " + (j && j.error ? j.error : "tidak diketahui"), menu);
         })());
       } else if (text === "/status") {
   ctx.waitUntil((async function () {
@@ -53,7 +57,8 @@ export default async (req, ctx) => {
   })());
 } else if (text === "/cctv") {
   ctx.waitUntil((async function () {
-    const r = await fetch("https://ciawi-dashboard.vercel.app/api/snap", { cache: "no-store" });
+    const HOST = "https://" + (process.env.CF_PAGES_URL || process.env.VERCEL_URL || "ciawi-scada.pages.dev");
+    const r = await fetch(HOST + "/api/snap", { cache: "no-store" });
     const j = await r.json().catch(function () { return null; });
     const cams = (j && (j.urls || j.cams || j.foto)) || null;
     if (!cams || !cams.length) { await send("📷 CCTV: tiada foto tersedia saat ini.", menu); return; }

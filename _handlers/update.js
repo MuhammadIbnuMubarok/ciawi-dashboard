@@ -41,7 +41,27 @@ export default async (req, res) => {
       if (!inlet || !outlet) { res.status(502).json({ error: "fleet tanpa stasiun ciawi" }); return; }
       const time = String(q.time || "").slice(0, 5);
       const store = await readStore();
-      store[time] = { time: time, ts: new Date().toISOString(), tmaIn: Number(inlet.WLevel), tmaOut: Number(outlet.WLevel), qIn: Number(inlet.debit), qOut: Number(outlet.debit), stIn: inlet.status, stOut: outlet.status };
+      const base = { time: time, ts: new Date().toISOString(), tmaIn: Number(inlet.WLevel), tmaOut: Number(outlet.WLevel), qIn: Number(inlet.debit), qOut: Number(outlet.debit), stIn: inlet.status, stOut: outlet.status };
+      // Sukamahi ikut disimpan agar /update bisa melapor dua bendungan tanpa
+      // fetch tambahan. Nilai null kalau barisnya tidak ada di sumber.
+      let skIn = null, skOut = null, skJam = "";
+      for (const s of arr) {
+        if (s.dam !== "BENDUNGAN SUKAMAHI") continue;
+        // TMA negatif tidak mungkin secara fisis (tinggi muka air di bawah
+        // titik acuan) - sensor tidak aktif. Simpan null supaya laporan
+        // menampilkan "tidak tersedia", bukan angka negatif yang menyesatkan.
+        const v = Number(s.WLevel);
+        if (/INLET/.test(s.nama_alaat)) {
+          if (v > 0) { skIn = v; skJam = s.ReceivedTime || skJam; }
+          else skJam = s.ReceivedTime || skJam;
+        } else if (/OUTLET/.test(s.nama_alaat)) {
+          if (v > 0) skOut = v;
+        }
+      }
+      base.tmaSkIn = skIn;
+      base.tmaSkOut = skOut;
+      base.skJam = skJam;
+      store[time] = base;
       await put(key, JSON.stringify(store), { contentType: "application/json", access: "private", allowOverwrite: true });
       res.json({ ok: true, day: day, time: time, snapshot: store[time] });
       return;
