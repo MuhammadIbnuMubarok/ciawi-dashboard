@@ -191,15 +191,16 @@ export default async function handler(req, res) {
     // "tidak tersedia" bila TMA sensor tidak terbaca (mis. null).
     const el = (v) => (v === null ? "tidak tersedia" : "+" + fmt2(v));
 
-    // Keterangan per foto. Mengikuti format laporan lapangan:
+    // Keterangan per foto. Ciawi dan Sukamahi memakai format yang sama:
     //   Update Bendungan Ciawi
-    //   05/10/2026 pukul 15:01 WIB
+    //   05/10/2026 pukul 16:16 WIB
+    //
     //   Status: Normal
-    //   Inlet: +505.66 (tma 1.46 m)
-    //   Outlet: +487.26 (tma 0.34 m)
-    //   Cuaca: Mendung
-    // Outlet memakai elevasi (kenaikan dari titik acuan Tailrace); Inlet
-    // memakai TMA, sesuai format yang dipakai di lapangan.
+    //   Inlet: +505.71 (tma 1.51 m)
+    //   Outlet: +487.32 (tma 0.40 m)
+    //
+    //   Cuaca: tidak tersedia
+    // Elevasi = titikAcuan + TMA, jadi otomatis ikut berubah saat TMA bergerak.
     const ket = [
       {
         stream: "CiawiInlet",
@@ -226,19 +227,22 @@ export default async function handler(req, res) {
         stream: "SukamahiInlet",
         nama: "sukamahi-inlet",
         cap:
-          `Bendungan Sukamahi ( Normal )\n` +
-          `Inlet ${el(sInEl)} (tma ${m(sIn)})\n` +
-          `Outlet ${el(sOutEl)} (tma ${m(sOut)})\n\n` +
-          `Cuaca : ${cuaca}`,
+          `Update Bendungan Sukamahi\n` +
+          `${tgl} pukul ${jam} WIB\n\n` +
+          `Status: Normal\n` +
+          `Inlet: ${el(sInEl)} (tma ${m(sIn)})\n` +
+          `Outlet: ${el(sOutEl)} (tma ${m(sOut)})\n\n` +
+          `Cuaca: ${cuaca}`,
       },
       {
         stream: "SukamahiOutlet",
         nama: "sukamahi-outlet",
         cap:
-          `Bendungan Sukamahi - Pintu Pengatur ( Normal )\n` +
+          `Update Bendungan Sukamahi - Pintu Pengatur\n` +
           `${tgl} pukul ${jam} WIB\n\n` +
-          `Outlet ${el(sOutEl)} (tma ${m(sOut)})\n\n` +
-          `Cuaca : ${cuaca}`,
+          `Status: Normal\n` +
+          `Outlet: ${el(sOutEl)} (tma ${m(sOut)})\n\n` +
+          `Cuaca: ${cuaca}`,
       },
     ];
 
