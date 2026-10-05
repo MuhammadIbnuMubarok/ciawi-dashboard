@@ -81,13 +81,27 @@ export default async (req, res) => {
         payload = JSON.parse(await new Response(b.stream).text());
       } catch (e2) { payload = null; }
     }
+    if (!payload) {
+      // Cadangan terakhir: data RTS duplikat dari folder UPB-DASHBOARD.
+      // Cloudflare tidak bisa login ke portal RTS (butuh cookie sesi), jadi
+      // tanpa ini panel RTS kosong total padahal ada arsip lokal.
+      try {
+        const { rtsDariBerkas } = await import("./_rts-data.js");
+        payload = rtsDariBerkas();
+      } catch (e3) { payload = null; }
+    }
     if (!payload) { res.status(502).json({ error: "sumber RTS tidak terjangkau dan cache kosong" }); return; }
     if (q.format === "csv") {
       const L = ["id_prisma;nama;waktu;X_awal;Y_awal;Z_awal;X_hasil;Y_hasil;Z_hasil;dX;dY;dZ;linier_m;linier_mm;arah_derajat;valid"];
       payload.rows.forEach(function (r) {
-        const c = [r.id, r.nama, r.waktu, r.x0, r.y0, r.z0, r.x1, r.y1, r.z1];
-        c.push(r.dx, r.dy, r.dz, r.lin.toFixed(4), (r.lin * 1000).toFixed(1));
-        c.push(r.arah.toFixed(2), r.ok ? "YA" : "TIDAK");
+        // toFixed() langsung pada nilai null membuat 500 saat mengunduh CSV:
+        // prisma acuan dan yang belum terekam tidak punya DX/DY/DZ/arah.
+        // Semua nilai kini aman terhadap null.
+        const f = function (v, d) { return v == null || !isFinite(v) ? "" : Number(v).toFixed(d); };
+        const c = [r.id, r.nama, r.waktu, f(r.x0, 3), f(r.y0, 3), f(r.z0, 3), f(r.x1, 3), f(r.y1, 3), f(r.z1, 3)];
+        c.push(f(r.dx, 3), f(r.dy, 3), f(r.dz, 3), f(r.lin, 4),
+          r.lin == null ? "" : (r.lin * 1000).toFixed(1));
+        c.push(f(r.arah, 2), r.ok ? "YA" : "TIDAK");
         L.push(c.join(";"));
       });
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
