@@ -27,6 +27,29 @@ const m = (v) =>
   v === null || v === undefined || !isFinite(v) ? "tidak tersedia" : fmt2(v) + " m";
 
 /**
+ * TITIK ACUAN (m dpl) - angka elevasi dihitung dari TMA real-time:
+ *   elevasi = titikAcuan + TMA
+ * Jadi ketika TMA naik/turun, angka pada laporan otomatis ikut berubah.
+ *
+ * ACUAN_CIAWI: dari laporan lapangan Ciawi
+ *   Inlet  505.66 - 1.46 = 504.20 ; Outlet 487.26 - 0.34 = 486.92
+ * ACUAN_SUKAMAHI: dari laporan lapangan Sukamahi (diberi user 2026-10-05)
+ *   Inlet  565.50 - 0.50 = 565.00 ; Outlet 545.60 - 0.20 = 545.40
+ *
+ * Kalau titik acuan berubah, ubah hanya di sini.
+ */
+const ACUAN = {
+  ciawi: { inlet: 504.2, outlet: 486.92 },
+  sukamahi: { inlet: 565.0, outlet: 545.4 },
+};
+
+/** hitung elevasi dari TMA real-time (meter) */
+function elevasi(acuan, tma) {
+  if (tma === null || tma === undefined || !isFinite(tma)) return null;
+  return Number(acuan) + Number(tma);
+}
+
+/**
  * Ambil TMA real-time dari /api/fleet (yang meng-scrape sdatelemetry).
  * Mengembalikan { ciawi:{inlet,outlet}, sukamahi:{inlet,outlet} }
  */
@@ -159,6 +182,15 @@ export default async function handler(req, res) {
     const sIn = tma.sukamahi.inlet?.tma ?? null;
     const sOut = tma.sukamahi.outlet?.tma ?? null;
 
+    // Elevasi dihitung dari TMA real-time: elevasi = titikAcuan + TMA.
+    const cInEl = elevasi(ACUAN.ciawi.inlet, cIn);
+    const cOutEl = elevasi(ACUAN.ciawi.outlet, cOut);
+    const sInEl = elevasi(ACUAN.sukamahi.inlet, sIn);
+    const sOutEl = elevasi(ACUAN.sukamahi.outlet, sOut);
+
+    // "tidak tersedia" bila TMA sensor tidak terbaca (mis. null).
+    const el = (v) => (v === null ? "tidak tersedia" : "+" + fmt2(v));
+
     // Keterangan per foto. Mengikuti format laporan lapangan:
     //   Update Bendungan Ciawi
     //   05/10/2026 pukul 15:01 WIB
@@ -176,8 +208,8 @@ export default async function handler(req, res) {
           `Update Bendungan Ciawi\n` +
           `${tgl} pukul ${jam} WIB\n\n` +
           `Status: Normal\n` +
-          `Inlet: +${fmt2(504.2 + (cIn ?? 0))} (tma ${m(cIn)})\n` +
-          `Outlet: +${fmt2(486.92 + (cOut ?? 0))} (tma ${m(cOut)})\n\n` +
+          `Inlet: ${el(cInEl)} (tma ${m(cIn)})\n` +
+          `Outlet: ${el(cOutEl)} (tma ${m(cOut)})\n\n` +
           `Cuaca: ${cuaca}`,
       },
       {
@@ -187,29 +219,26 @@ export default async function handler(req, res) {
           `Update Bendungan Ciawi - Pintu Pengatur\n` +
           `${tgl} pukul ${jam} WIB\n\n` +
           `Status: Normal\n` +
-          `Outlet: +${fmt2(486.92 + (cOut ?? 0))} (tma ${m(cOut)})\n\n` +
+          `Outlet: ${el(cOutEl)} (tma ${m(cOut)})\n\n` +
           `Cuaca: ${cuaca}`,
       },
       {
         stream: "SukamahiInlet",
         nama: "sukamahi-inlet",
         cap:
-          `Update Bendungan Sukamahi\n` +
-          `${tgl} pukul ${jam} WIB\n\n` +
-          `Status: Normal\n` +
-          `Inlet: ${m(sIn)}\n` +
-          `Outlet: ${m(sOut)}\n\n` +
-          `Cuaca: ${cuaca}`,
+          `Bendungan Sukamahi ( Normal )\n` +
+          `Inlet ${el(sInEl)} (tma ${m(sIn)})\n` +
+          `Outlet ${el(sOutEl)} (tma ${m(sOut)})\n\n` +
+          `Cuaca : ${cuaca}`,
       },
       {
         stream: "SukamahiOutlet",
         nama: "sukamahi-outlet",
         cap:
-          `Update Bendungan Sukamahi - Pintu Pengatur\n` +
+          `Bendungan Sukamahi - Pintu Pengatur ( Normal )\n` +
           `${tgl} pukul ${jam} WIB\n\n` +
-          `Status: Normal\n` +
-          `Outlet: ${m(sOut)}\n\n` +
-          `Cuaca: ${cuaca}`,
+          `Outlet ${el(sOutEl)} (tma ${m(sOut)})\n\n` +
+          `Cuaca : ${cuaca}`,
       },
     ];
 
