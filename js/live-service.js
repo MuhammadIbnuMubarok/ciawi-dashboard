@@ -32,7 +32,10 @@ function parseFleet(json){
   const out = {};
   const list = (json && json.telemetryjakarta) || [];
   for (const s of list) {
-    const name = String(s.nama_alat || '').toLowerCase();
+    // Backend mengirim "nama_alaat" (dua 'a') sedangkan versi lama kode ini
+    // membaca "nama_alat" (satu 'a'), sehingga name selalu kosong dan cabang
+    // outlet tidak pernah cocok -> OUTLET TMA selalu "—". Terima keduanya.
+    const name = String(s.nama_alaat || s.nama_alat || '').toLowerCase();
     const loc  = String(s.nama_lokasi || '').toLowerCase();
     const wcm  = Number(s.WLevel);
     const tma  = Number.isFinite(wcm) ? wcm / 100 : null;
