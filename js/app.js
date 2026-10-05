@@ -76,6 +76,51 @@ function goToNextPage(){currentPage++;renderTable();}
 function renderTable(){const total=workingDataset.length;const pages=Math.max(1,Math.ceil(total/pageSize));if(currentPage>pages)currentPage=pages;const start=(currentPage-1)*pageSize;const rows=workingDataset.slice(start,start+pageSize);$("telemetry-tbody").innerHTML=rows.map(r=>"<tr class='hover:bg-surface-container-low/60 transition-colors'><td class='py-2 px-3 text-on-surface-variant'>"+r.no+"</td><td class='py-2 px-3'>"+tglID(r.tanggal)+"</td><td class='py-2 px-3'>"+r.jam+"</td><td class='py-2 px-3 text-right text-primary font-semibold'>"+fmt2(r.elevasi)+"</td><td class='py-2 px-3 text-right'>"+fmt2(r.sedimen)+"</td><td class='py-2 px-3 text-right'>"+fmt2(r.bukaan)+"</td><td class='py-2 px-3 text-right text-secondary'>"+fmt2(r.vol)+"</td><td class='py-2 px-3 text-right'>"+fmt2(r.qout_konduit)+"</td><td class='py-2 px-3 text-right'>"+fmt2(r.qout_spillway)+"</td><td class='py-2 px-3 text-right'>"+fmt2(r.qout_total)+"</td><td class='py-2 px-3 text-right text-siaga-2'>"+fmt2(r.qin)+"</td><td class='py-2 px-3 text-right text-siaga-normal'>"+fmt2(r.reduksi)+"</td><td class='py-2 px-3 text-center'>"+statusBadge(r.status)+"</td></tr>").join("")||"<tr><td colspan='13' class='py-6 text-center text-on-surface-variant'>Tidak ada data yang cocok dengan filter.</td></tr>";$("tbl-rowcount").textContent="Menampilkan "+(total?start+1:0)+"–"+Math.min(start+pageSize,total)+" dari "+total+" rekaman";$("tbl-badge-summary").textContent=total+" REKAMAN AKTIF";let pg="";const win=[];for(let p=1;p<=pages;p++){if(p===1||p===pages||Math.abs(p-currentPage)<=1)win.push(p);else if(win[win.length-1]!=="…")win.push("…");}$("tbl-pagination").innerHTML=win.map(p=>p==="…"?'<span class="px-1 text-on-surface-variant">…</span>':'<button class="w-7 h-7 rounded text-xs '+(p===currentPage?"bg-primary-container text-on-primary-container font-bold":"bg-surface-container text-on-surface-variant hover:text-on-surface")+'" onclick="goToPage('+p+')">'+p+"</button>").join("");$("btn-prev-page").disabled=currentPage<=1;$("btn-next-page").disabled=currentPage>=pages;}
 function exportTableToCSV(filename){const head=["NO","TANGGAL","JAM","ELEVASI_M","SEDIMEN_M","BUKAAN_KONDUIT_M","VOLUME_M3","QOUT_KONDUIT","QOUT_SPILLWAY","QOUT_TOTAL","QIN","REDUKSI","STATUS"];const lines=[head.map(__csvq).join(",")].concat(workingDataset.map(r=>[r.no,r.tanggal,r.jam,r.elevasi,r.sedimen,r.bukaan==null?"":r.bukaan,r.vol,r.qout_konduit==null?"":r.qout_konduit,r.qout_spillway==null?"":r.qout_spillway,r.qout_total==null?"":r.qout_total,r.qin==null?"":r.qin,r.reduksi==null?"":r.reduksi,r.status==null?"":r.status].map(__csvq).join(",")));const blob=new Blob([lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;a.click();URL.revokeObjectURL(a.href);}
 function downloadFilteredData(){exportTableToCSV("neraca_ciawi_terfilter_"+new Date().toISOString().slice(0,10)+".csv");}
+
+// --- unduh SELURUH data (mengabaikan rentang tanggal & interval) ---
+// exportTableToCSV() memakai workingDataset yang sudah difilter, sehingga
+// tombol lama hanya menghasilkan 1-2 baris terakhir, walaupun di layar
+// rentang 2023-2026 terlihat aktif. Fungsi di bawah mengambil baseData()
+// apa adanya - seluruh histori.
+function exportAllCSV(filename){
+  var src = baseData();
+  if (!src || !src.length) { alert("Tidak ada data untuk diunduh."); return; }
+  var head=["NO","TANGGAL","JAM","ELEVASI_M","SEDIMEN_M","BUKAAN_KONDUIT_M","VOLUME_M3","QOUT_KONDUIT","QOUT_SPILLWAY","QOUT_TOTAL","QIN","REDUKSI","STATUS"];
+  var lines=[head.map(__csvq).join(",")];
+  var out=lines;
+  src.forEach(function(r){ out.push([r.no,r.tanggal,r.jam,r.elevasi,r.sedimen,r.bukaan==null?"":r.bukaan,r.vol,r.qout_konduit==null?"":r.qout_konduit,r.qout_spillway==null?"":r.qout_spillway,r.qout_total==null?"":r.qout_total,r.qin==null?"":r.qin,r.reduksi==null?"":r.reduksi,r.status==null?"":r.status].map(__csvq).join(",")); });
+  __tarikCSV(out.join("\r\n"), filename || "neraca_ciawi_SEMUA_data.csv");
+}
+function exportAllHourlyCSV(filename){
+  var src = baseData();
+  if (!src || !src.length) { alert("Tidak ada data untuk diunduh."); return; }
+  var buckets = {};
+  src.forEach(function(r){ var k=(r.tanggal||"")+" "+String(r.jam||"00:00").slice(0,2); (buckets[k]=buckets[k]||[]).push(r); });
+  var num=function(v){ if(v==null||v===""||v==="-") return null; var x=parseFloat(String(v).replace(",",".")); return isFinite(x)?x:null; };
+  var keys=Object.keys(buckets).sort();
+  var rows=keys.map(function(k,i){
+    var g=buckets[k], o={NO:i+1,TANGGAL:k.slice(0,10),JAM:k.slice(11,13)+":00"};
+    Object.keys(g[0]).forEach(function(key){
+      if(key==="no"||key==="tanggal"||key==="jam") return;
+      var vals=g.map(function(r){return num(r[key]);}).filter(function(x){return x!==null;});
+      o[key.toUpperCase()] = vals.length ? Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length*100)/100 : g[0][key];
+    });
+    return o;
+  });
+  if (!rows.length) { alert("Tidak ada data untuk diunduh."); return; }
+  var head=Object.keys(rows[0]);
+  var lines=[head.map(__csvq).join(",")].concat(rows.map(function(r){ return head.map(function(h){ return __csvq(r[h]); }).join(","); }));
+  __tarikCSV(lines.join("\r\n"), filename || "neraca_ciawi_SEMUA_per_jam.csv");
+}
+// unduh helper: BOM UTF-8 supaya Excel Indonesia membaca karakter dengan benar
+function __tarikCSV(csv, filename){
+  var blob = new Blob(["\uFEFF"+csv], { type:"text/csv;charset=utf-8;" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1500);
+}
 function setDatasetFilter(key){currentChart=key;document.querySelectorAll(".chart-filter-btn").forEach(b=>b.classList.remove("active"));const b=$("filter-"+key);if(b)b.classList.add("active");renderChart(key);}
 function selectDataPoint(i){const d=CHART_SCENARIOS[currentChart];const qi=d.inflows[i],qo=d.outflows[i];const rd=(qi!=null&&qo!=null)?qi-qo:null;$("chart-cursor-info").innerHTML="<b class='text-primary'>"+d.labels[i]+"</b> • Elv. <b>"+fmt2(d.elevations[i])+" m</b> • Vol. <b>"+fmt2(d.volumes[i])+" m³</b> • Q In <b>"+(qi==null?"tidak terekam":fmt2(qi)+" m³/s")+"</b> • Q Out <b>"+(qo==null?"tidak terekam":fmt2(qo)+" m³/s")+"</b> • Reduksi <b>"+(rd==null?"—":fmt2(rd)+" m³/s")+"</b>";}
 function renderSedimenBars(d){const mx=Math.max.apply(null,d.sedimen)||1;$("sedimen-bars").innerHTML=d.sedimen.map((s,i)=>'<div class="flex-1 h-full flex items-end cursor-pointer" onclick="selectDataPoint('+i+')" title="'+d.labels[i]+'"><div class="w-full bg-tertiary-container rounded-t" style="height:'+Math.max(2,(s/mx)*100)+'%"></div></div>').join("");$("sedimen-summary").textContent="Sedimen maks periode ini: "+fmt2(mx)+" m • ambang perhatian > 10,00 m";}
