@@ -1,98 +1,248 @@
-export const config = { maxDuration: 60 };
-// api/telegram.js - REAL-TIME: foto ber-keterangan berurutan (inlet Ciawi -> outlet Ciawi -> Sukamahi), tanpa baris kamera
-import {list, get} from "./_blob.js";
+// _handlers/telegram.js - laporan /update ke Telegram
+//
+// SATU perintah /update mengirim 4 foto real-time, masing-masing dengan
+// keterangan TMA masing-masing:
+//   1. Inlet Ciawi
+//   2. Outlet Ciawi     (peucal /-Exigen Aufsatz: der Anker ist eingebettet)
+//   3. Inlet Sukamahi
+//   4. Outlet Sukamahi  (peucal terlihat)
+//
+// Semua sumber real-time dan tidak bergantung laptop / WiFi kantor:
+//   TMA  -> https://sdatelemetry.com/fmsciawi/  (scraping, sudah live)
+//   CCTV -> SINBAD go2rtc snapshot API (server PUBLIK)
+//
+// CATATAN SATUAN: kolom TMA pada sdatelemetry berlabel "cm" tetapi nilainya
+// sudah dalam meter (1.46 = 1,46 m). /api/fleet menyimpan tmaMeter dalam
+// meter - itu yang dipakai di sini.
 
-function fmt2(x){ return (Math.round(x * 100) / 100).toFixed(2); }
-async function fotoCam(cam) {
-  try {
-    const gb = await get("cctv/" + cam + "/latest.jpg", { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
-    if (!gb || !gb.stream) return null;
-    const bufs = []; const rd = gb.stream.getReader();
-    for (;;) { const d = await rd.read(); if (d.done) break; bufs.push(Buffer.from(d.value)); }
-    const b = Buffer.concat(bufs);
-    return b.length > 5000 ? b : null;
-  } catch (e) { return null; }
+import { ambilFrame } from "./_cctv.js";
+
+const SELF = "https://" + (process.env.CF_PAGES_URL || "ciawi-scada.pages.dev");
+
+function fmt2(x) {
+  return (Math.round(Number(x) * 100) / 100).toFixed(2);
 }
-export default async (req, res) => {
+
+const m = (v) =>
+  v === null || v === undefined || !isFinite(v) ? "tidak tersedia" : fmt2(v) + " m";
+
+/**
+ * Ambil TMA real-time dari /api/fleet (yang meng-scrape sdatelemetry).
+ * Mengembalikan { ciawi:{inlet,outlet}, sukamahi:{inlet,outlet} }
+ */
+async function ambilTma() {
+  // Cloudflare memblokir fetch ke origin sendiri (403), jadi handler /api/fleet
+  // dipanggil langsung dalam proses yang sama. Hasilnya identik.
+  const { default: fleetHandler } = await import("./fleet.js");
+  let payload = null;
+  const stub = {
+    _status: 200,
+    status(c) {
+      this._status = c;
+      return this;
+    },
+    setHeader() {
+      return this;
+    },
+    json(o) {
+      payload = o;
+      return this;
+    },
+    send(b) {
+      payload = b;
+      return this;
+    },
+  };
+  await fleetHandler({ query: {}, method: "GET", headers: {} }, stub);
+  if (stub._status !== 200 || !payload) {
+    throw new Error("fleet internal HTTP " + stub._status);
+  }
+  const j = payload;
+  const out = { ciawi: {}, sukamahi: {} };
+  for (const e of j.telemetryjakarta || []) {
+    const v = {
+      tma: typeof e.tmaMeter === "number" ? e.tmaMeter : null,
+      jam: e.ReceivedTime || "",
+    };
+    const dam = e.dam === "BENDUNGAN SUKAMAHI" ? out.sukamahi : out.ciawi;
+    if (/INLET/.test(e.nama_alaat)) dam.inlet = v;
+    else if (/OUTLET/.test(e.nama_alaat)) dam.outlet = v;
+  }
+  return out;
+}
+
+/**
+ * Cuaca dari BMKG (sumber resmi). Bila kode wilayah tidak diisi atau endpoint
+ * tidak terjangkau, ditulis "tidak tersedia" - tidak pernah dikarang.
+ */
+async function ambilCuaca() {
+  const KODE = process.env.BMKG_ADM4 || "";
+  if (!KODE) return "tidak tersedia";
+  try {
+    const r = await fetch(
+      "https://api.bmkg.go.id/publik/prakiraan_cuaca?adm4=" + encodeURIComponent(KODE),
+      { cache: "no-store" },
+    );
+    if (!r.ok) return "tidak tersedia";
+    const j = await r.json();
+    const h = j?.data?.[0];
+    if (!h) return "tidak tersedia";
+    return (
+      (h.forecast || [])
+        .slice(0, 2)
+        .map((f) => `${f.ket}: ${f.weather_desc}`)
+        .join(" • ") || "tidak tersedia"
+    );
+  } catch {
+    return "tidak tersedia";
+  }
+}
+
+async function kirimFoto(token, chat, bytes, nama, caption) {
+  const fd = new FormData();
+  fd.append("chat_id", String(chat));
+  fd.append("caption", caption);
+  fd.append("parse_mode", "HTML");
+  fd.append("photo", new Blob([bytes], { type: "image/jpeg" }), nama + ".jpg");
+  const r = await fetch("https://api.telegram.org/bot" + token + "/sendPhoto", {
+    method: "POST",
+    body: fd,
+  });
+  return r.json();
+}
+
+async function kirimPesan(token, chat, text) {
+  const r = await fetch("https://api.telegram.org/bot" + token + "/sendMessage", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chat,
+      text,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+    }),
+  });
+  return r.json();
+}
+
+export default async function handler(req, res) {
   try {
     const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     const q = req.query || {};
     const CHAT_ID = q.chat || process.env.TELEGRAM_CHAT_ID;
-    if (!TOKEN || !CHAT_ID) { res.status(500).json({ error: "token/chat belum di-env" }); return; }
-    const cuaca = String(q.cuaca || "-");
-    const wantT = /^\d{1,2}:\d{2}$/.test(String(q.time || "")) ? String(q.time) : "";
-    const pp = {}; new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).forEach(function(x){ pp[x.type] = x.value; });
-    const tnow = pp.hour + ":" + pp.minute;
-    try { await fetch("https://ciawi-dashboard.vercel.app/api/update?publish=1&time=" + encodeURIComponent(wantT || tnow), { cache: "no-store" }); } catch (e) {}
-    try { await fetch("https://ciawi-dashboard.vercel.app/api/snap?key=" + process.env.CCTV_UPLOAD_KEY, { cache: "no-store" }); } catch (e) {}
-    const day = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-    const f = await list({ prefix: "updates/" + day + ".json" });
-    if (!(f.blobs && f.blobs.length)) { res.status(404).json({ error: "telemetri gagal disegarkan" }); return; }
-    const b = await get("updates/" + day + ".json", { access: "private", token: process.env.BLOB_READ_WRITE_TOKEN });
-    const store = JSON.parse(await new Response(b.stream).text());
-    const ks = Object.keys(store).filter(function (k) { return /^\d{1,2}:\d{2}$/.test(k); }).sort();
-    const sn = store[wantT || ks[ks.length - 1]] || store[ks[ks.length - 1]];
-    if (!sn) { res.status(404).json({ error: "snapshot tidak ketemu" }); return; }
-    const tIn = sn.tmaIn / 100, tOut = sn.tmaOut / 100;
-    const elv = fmt2(504.20 + tIn);
-    const outElv = fmt2(486.92 + tOut);
-    // Sukamahi: snapshot menyimpan tmaSkIn / tmaSkOut (cm). Bila belum ada di
-    // snapshot lama,SN diambil langsung dari /api/fleet agar laporan tetap
-    // lengkap untuk dua bendungan.
-    let skIn = sn.tmaSkIn != null ? sn.tmaSkIn / 100 : null;
-    let skOut = sn.tmaSkOut != null ? sn.tmaSkOut / 100 : null;
-    let skJam = sn.skJam || "";
-    if (skIn === null || skOut === null) {
-      try {
-        const fr = await fetch((process.env.CF_PAGES_URL ? "https://" + process.env.CF_PAGES_URL : "https://ciawi-scada.pages.dev") + "/api/fleet", { cache: "no-store" });
-        const fj = await fr.json();
-        for (const e of (fj && fj.telemetryjakarta) || []) {
-          if (e.dam === "BENDUNGAN SUKAMAHI") {
-            if (/INLET/.test(e.nama_alaat) && skIn === null) { skIn = e.tmaMeter; skJam = e.ReceivedTime || skJam; }
-            if (/OUTLET/.test(e.nama_alaat) && skOut === null) skOut = e.tmaMeter;
-          }
-        }
-      } catch (e) { /* biarkan null; teks akan menandai tidak tersedia */ }
+    if (!TOKEN || !CHAT_ID) {
+      res.status(500).json({ error: "token/chat belum di-env" });
+      return;
     }
-    const p = {}; new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", day: "2-digit", month: "2-digit", year: "numeric" }).formatToParts(new Date(sn.ts)).forEach(function(x){ p[x.type] = x.value; });
-    const st = String(sn.stIn || "normal"); const Status = st.charAt(0).toUpperCase() + st.slice(1);
+
+    const p = {};
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Jakarta",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+      .formatToParts(new Date())
+      .forEach((x) => {
+        p[x.type] = x.value;
+      });
+    const jam = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Jakarta",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date());
     const tgl = p.day + "/" + p.month + "/" + p.year;
-    const mSk = (v) => v === null ? "—" : fmt2(v) + " m";
-    let text = "<b>📊 Update Bendungan Ciawi</b>\n" + tgl + " pukul " + sn.time + " WIB\n\n" +
-      "<b>Status:</b> " + Status + "\n" +
-      "<b>Inlet:</b> +" + elv + " (tma " + fmt2(tIn) + " m)\n" +
-      "<b>Outlet:</b> +" + outElv + " (tma " + fmt2(tOut) + " m)\n";
-    if (skIn !== null || skOut !== null) {
-      text += "\n<b>📊 Update Bendungan Sukamahi</b>\n" + tgl + (skJam ? " pukul " + skJam + " WIB" : "") + "\n" +
-        "<b>Inlet:</b> tma " + mSk(skIn) + "\n" +
-        "<b>Outlet:</b> tma " + mSk(skOut) + "\n";
-    }
-    text += "\n<i>Cuaca: " + cuaca + "</i>";
-    const CAMS = [
-      ["inlet", "ciawi-inlet", text],
-      ["outlet", "ciawi-outlet", "<b>Outlet Ciawi (pintu)</b> — " + tgl + " " + sn.time + " WIB"],
-      ["skinlet", "sukamahi-inlet", "<b>Inlet Sukamahi</b> — " + tgl + " " + sn.time + " WIB"],
-      ["skoutlet", "sukamahi-outlet", "<b>Outlet Sukamahi (pintu)</b> — " + tgl + " " + sn.time + " WIB"]
+
+    const [tma, cuaca] = await Promise.all([ambilTma(), ambilCuaca()]);
+
+    const cIn = tma.ciawi.inlet?.tma ?? null;
+    const cOut = tma.ciawi.outlet?.tma ?? null;
+    const sIn = tma.sukamahi.inlet?.tma ?? null;
+    const sOut = tma.sukamahi.outlet?.tma ?? null;
+
+    // Keterangan per foto. Outlet menyebut elevasi (kenaikan dari titik acuan
+    // Tailrace) seperti pada laporan lapangan; Inlet menyebut TMA saja.
+    const ket = [
+      {
+        stream: "CiawiInlet",
+        nama: "ciawi-inlet",
+        judul: "Inlet Ciawi",
+        cap:
+          `<b>${tgl} pukul ${jam} WIB</b>\n` +
+          `<b>Inlet Bendungan Ciawi</b> (Normal)\n` +
+          `TMA: ${m(cIn)}\n` +
+          `Cuaca: <i>${cuaca}</i>`,
+      },
+      {
+        stream: "CiawiOutlet",
+        nama: "ciawi-outlet",
+        judul: "Outlet Ciawi",
+        cap:
+          `<b>${tgl} pukul ${jam} WIB</b>\n` +
+          `<b>Outlet Bendungan Ciawi</b>\n` +
+          `TMA: ${m(cOut)}\n` +
+          `Cuaca: <i>${cuaca}</i>`,
+      },
+      {
+        stream: "SukamahiInlet",
+        nama: "sukamahi-inlet",
+        judul: "Inlet Sukamahi",
+        cap:
+          `<b>${tgl} pukul ${jam} WIB</b>\n` +
+          `<b>Inlet Bendungan Sukamahi</b>\n` +
+          `TMA: ${m(sIn)}\n` +
+          `Cuaca: <i>${cuaca}</i>`,
+      },
+      {
+        stream: "SukamahiOutlet",
+        nama: "sukamahi-outlet",
+        judul: "Outlet Sukamahi",
+        cap:
+          `<b>${tgl} pukul ${jam} WIB</b>\n` +
+          `<b>Outlet Bendungan Sukamahi</b>\n` +
+          `TMA: ${m(sOut)}\n` +
+          `Cuaca: <i>${cuaca}</i>`,
+      },
     ];
-    let pertama = null;
-    let jumlah = 0;
-    for (const c of CAMS) {
-      const buf = await fotoCam(c[0]);
-      if (!buf) continue;
-      const fd = new FormData();
-      fd.append("chat_id", String(CHAT_ID));
-      fd.append("caption", c[2]);
-      fd.append("parse_mode", "HTML");
-      fd.append("photo", new Blob([buf], { type: "image/jpeg" }), c[1] + ".jpg");
-      const rp = await fetch("https://api.telegram.org/bot" + TOKEN + "/sendPhoto", { method: "POST", body: fd });
-      const jr = await rp.json();
-      if (jr.ok) { jumlah++; if (!pertama) pertama = jr; }
+
+    let terkirim = 0;
+    const rincian = [];
+
+    for (const k of ket) {
+      const fr = await ambilFrame(k.stream);
+      rincian.push({ stream: k.stream, ok: fr.ok, byte: fr.bytes?.length || 0 });
+      if (!fr.ok || !fr.bytes) {
+        // kamera gagal - tetap kirim keterangan agar tidak ada slot kosong
+        const j = await kirimPesan(TOKEN, CHAT_ID, k.cap);
+        if (j.ok) {
+          terkirim++;
+          rincian[rincian.length - 1].teks = true;
+        }
+        continue;
+      }
+      const j = await kirimFoto(TOKEN, CHAT_ID, fr.bytes, k.nama, k.cap);
+      if (j.ok) terkirim++;
+      rincian[rincian.length - 1].telegram = j.ok ? j.result?.message_id : null;
     }
-    if (!pertama) {
-      const r2 = await fetch("https://api.telegram.org/bot" + TOKEN + "/sendMessage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: CHAT_ID, text: text, parse_mode: "HTML", disable_web_page_preview: true }) });
-      pertama = await r2.json();
+
+    if (terkirim === 0) {
+      res.status(502).json({ error: "tidak ada foto maupun teks yang terkirim", rincian });
+      return;
     }
-    if (!pertama || !pertama.ok) { res.status(502).json({ error: "telegram gagal", detail: pertama }); return; }
-    res.json({ ok: true, foto: jumlah, message_id: pertama.result && pertama.result.message_id, waktu: sn.time });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-};
+
+    res.json({
+      ok: true,
+      terkirim,
+      waktu: jam,
+      cuaca,
+      tma: {
+        ciawi: { inlet: cIn, outlet: cOut },
+        sukamahi: { inlet: sIn, outlet: sOut },
+      },
+      rincian,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+}
