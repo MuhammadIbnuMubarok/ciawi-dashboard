@@ -62,8 +62,19 @@ export default async function handler(req, res) {
   }
 
   const alat = master.alat;
-  const H = history && typeof history === "object" ? history : {};
-  const seriTimb = arsip && arsip.seri ? arsip.seri : {};
+    const H = history && typeof history === "object" ? history : {};
+    const seriTimb = arsip && arsip.seri ? arsip.seri : {};
+
+    // Kunci piezo-arsip.seri berbentuk "NAMA@sta@..." (atau "GRUP@sta@...").
+    // Peta dua arah supaya bisa cari elevasi per instrumen maupun per grup.
+    const timbInstrumen = {};
+    const grupTimb = {};
+    for (const [k, v] of Object.entries(seriTimb)) {
+      if (!Array.isArray(v) || !k.includes("@")) continue;
+      const kode = String(k).split("@")[0];
+      (grupTimb[kode] = grupTimb[kode] || []).push(...v);
+      if (H[kode]) timbInstrumen[kode] = v;
+    }
 
   // ---------- CSV export: histori panjang per instrumen ----------
   if (q.format === "csv") {
@@ -154,49 +165,116 @@ export default async function handler(req, res) {
   }
 
   // ---------- GET: satu seri untuk grafik ----------
-  // Parameter dari pz-panel.js: ?seri=1&sta=<sta>&dari=<YYYY-MM-DD>
-  // Mengembalikan { nama, sta, seri: [[tanggal, nilai], ...], ... } untuk
-  // instruments yang benar-benar punya histori, sehingga grafik punya titik.
-  if (q.seri !== undefined) {
-    const sta = String(q.sta ?? "");
-    const dari = String(q.dari ?? "");
-    let idx = alat.findIndex((r) => r.sta === sta && H[r.name]);
-    if (idx < 0) idx = alat.findIndex((r) => H[r.name]);
-    if (idx < 0) {
-      res.status(404).json({ error: "tidak ada instrumen dengan histori" });
+    // Kontrak pz-panel.js (WAJIB DIPERHATIKAN):
+    //   seri    : [{ name, jumlah, titik:[[tanggal, press, elevasi, ru], ...] }]
+    //   timbunan: [{ kode, titik:[[tanggal, elevasi], ...] }]
+    // Parameter: ?seri=1&sta=<sta>&dari=<YYYY-MM-DD>
+    // Versi lama (yang hanya bisa mengembalikan satu nilai) tidak cocok dengan
+    // bentuk ini sehingga gambarSemua() gagal dan grafik tetap kosong.
+    if (q.seri !== undefined) {
+      const sta = String(q.sta ?? "");
+      const dari = String(q.dari ?? "");
+      const setelahDari = (t) => !dari || !/^\d{4}-\d{2}-\d{2}$/.test(dari) || t >= dari;
+
+      // --- tiap instrumen yang punya histori jadi satu seri ---
+      const seri = alat
+        .filter((r) => H[r.name])
+        .map((r) => {
+          const s = H[r.name];
+          const tgl = Object.keys(s).filter(setelahDari).sort();
+                    const timb = timbInstrumen[r.name];
+          const elvOf = (t) => {
+            if (!timb || !timb.length) return null;
+            // timbunan di stepwise: ambil nilai terakhir yang <= tanggal ini
+            let v = null;
+            for (const [td, val] of timb) {
+              if (td <= t) v = val;
+              else break;
+            }
+            return v;
+          };
+          const titik = tgl.map((t) => {
+            const h = hitung(r, s[t]);
+            return [t, s[t], elvOf(t), h.ru];
+          });
+          const akhir = titik.length ? titik[titik.length - 1] : null;
+          const h = hitung(r, akhir ? akhir[1] : r.press);
+          return {
+            name: r.name,
+            sta: r.sta,
+            tip: r.tip,
+            top: r.top,
+            gamma: r.gamma,
+            izin: r.izin,
+            jumlah: titik.length,
+            tanggalAwal: titik.length ? titik[0][0] : null,
+            tanggalAkhir: akhir ? akhir[0] : null,
+            press: akhir ? akhir[1] : r.press,
+            ru: h.ru,
+            status: h.status,
+            ket: r.ket || null,
+            titik,
+          };
+        })
+        .filter((s) => s.jumlah > 0);
+
+      if (!seri.length) {
+        res.status(404).json({ error: "tidak ada instrumen dengan histori" });
+        return;
+      }
+
+      // --- grup timbunan untuk garis elevasi (dipakai saat metrik = elevasi) ---
+          // Kunci piezo-arsip.seri bercampur: sebagian "KODE@sta@..." (titik
+          // elevasi timbunan) dan sebagian nama instrumen mentah. Hanya kunci yang
+          // mengandung "@" yang benar-benar grup timbunan.
+          const grupTimb = {};
+          for (const [k, v] of Object.entries(seriTimb)) {
+            if (!Array.isArray(v) || !k.includes("@")) continue;
+            const kode = String(k).split("@")[0];
+            const t = v.filter((p) => Array.isArray(p) && setelahDari(p[0]));
+            if (!t.length) continue;
+            (grupTimb[kode] = grupTimb[kode] || []).push(...t);
+          }
+      const timbunan = Object.entries(grupTimb).map(([kode, t]) => {
+        const seen = new Map();
+        for (const [td, val] of t) seen.set(td, val); // dedup per tanggal
+        return { kode, titik: [...seen.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1) };
+      });
+
+      res.status(200).json({
+        seri,
+        timbunan,
+        meta: {
+          instrumen: seri.length,
+          titik: seri.reduce((n, s) => n + s.jumlah, 0),
+          rentangDari: dari || null,
+          sta: sta || "(semua)",
+        },
+      });
       return;
     }
 
-    const r = alat[idx];
-    const seri = H[r.name] || {};
-    let tgl = Object.keys(seri).sort();
-    if (dari && /^\d{4}-\d{2}-\d{2}$/.test(dari)) {
-      tgl = tgl.filter((t) => t >= dari);
+    // ---------- GET: rekap ----------
+    if (q.rekap !== undefined) {
+      res.status(200).json({
+        rekap: alat.map((r) => {
+          const s = H[r.name] || {};
+          const tgl = Object.keys(s).sort();
+          const terakhir = tgl.length ? tgl[tgl.length - 1] : null;
+          const h = hitung(r, terakhir ? s[terakhir] : r.press);
+          return {
+            name: r.name, sta: r.sta, izin: r.izin,
+            press: terakhir ? s[terakhir] : r.press,
+            tanggal: terakhir || "", ru: h.ru, status: h.status,
+            jumlah: tgl.length,
+          };
+        }),
+        sesuai: master.generated || null,
+      });
+      return;
     }
-    const pts = tgl.map((t) => [t, seri[t]]);
-    const akhir = pts.length ? pts[pts.length - 1] : null;
-    const h = hitung(r, akhir ? akhir[1] : r.press);
 
-    res.status(200).json({
-      nama: r.name,
-      sta: r.sta,
-      dari: tgl.length ? tgl[0] : null,
-      sampai: akhir ? akhir[0] : null,
-      titik: pts.length,
-      seri: pts,
-      tip: r.tip,
-      top: r.top,
-      gamma: r.gamma,
-      izin: r.izin,
-      press: akhir ? akhir[1] : r.press,
-      ru: h.ru,
-      status: h.status,
-      topSerie: Array.isArray(r.topSerie) ? r.topSerie : null,
-    });
-    return;
-  }
-
-  // ---------- GET: data lengkap ----------
+    // ---------- GET: data lengkap ----------
   const semuaTanggal = new Set();
   let totalPembacaan = 0;
   for (const s of Object.values(H)) {
