@@ -1,5 +1,10 @@
 backup-v24/
+_backup-piezo-*/
 node_modules/
 *.bak
+*.bak-v1
 .vercel
 .env*
+piezometer/
+*.log
+.DS_Store
