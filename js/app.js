@@ -112,6 +112,111 @@ function exportAllHourlyCSV(filename){
   var lines=[head.map(__csvq).join(",")].concat(rows.map(function(r){ return head.map(function(h){ return __csvq(r[h]); }).join(","); }));
   __tarikCSV(lines.join("\r\n"), filename || "neraca_ciawi_SEMUA_per_jam.csv");
 }
+// --- unduh berdasarkan RENTANG TANGGAL yang diketik pengguna ---
+// applyFilters() memotong data dengan currentInterval (mis. 6H), sehingga
+// rentang 2023-2026 hanya menyisakan 2 baris terakhir. Fungsi ini
+// menghormati tanggal awal/akhir + preset + pencarian, TAPI mengabaikan
+// interval - jadi rentang yang dipilih benar-benar keluar utuh.
+function rentangDipilih(){
+  const q = ($("table-search").value || "").trim().toLowerCase();
+  const ds = $("date-range-start").value, de = $("date-range-end").value;
+  const preset = currentPreset;
+  return baseData().filter(function(r){
+    if (ds && r.tanggal < ds) return false;
+    if (de && r.tanggal > de) return false;
+    if (preset === "siaga" && !(r.status && r.status.indexOf("Siaga") === 0)) return false;
+    if (preset === "flushing" && !((r.status === "Flushing") || (r.sedimen != null && r.sedimen <= 1.0))) return false;
+    if (q) {
+      const hay = (r.no + " " + r.tanggal + " " + r.jam + " " + r.elevasi + " " + (r.status || "")).toLowerCase();
+      if (hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+}
+function exportRentangCSV(filename){
+  var src = rentangDipilih();
+  if (!src.length) { alert("Tidak ada data pada rentang yang dipilih. Cek tanggal awal/akhir."); return; }
+  src.sort(function(a,b){ return (a.tanggal+"T"+a.jam) < (b.tanggal+"T"+b.jam) ? -1 : 1; });
+  var head=["NO","TANGGAL","JAM","ELEVASI_M","SEDIMEN_M","BUKAAN_KONDUIT_M","VOLUME_M3","QOUT_KONDUIT","QOUT_SPILLWAY","QOUT_TOTAL","QIN","REDUKSI","STATUS"];
+  var lines=[head.map(__csvq).join(",")];
+  src.forEach(function(r){ lines.push([r.no,r.tanggal,r.jam,r.elevasi,r.sedimen,r.bukaan==null?"":r.bukaan,r.vol,r.qout_konduit==null?"":r.qout_konduit,r.qout_spillway==null?"":r.qout_spillway,r.qout_total==null?"":r.qout_total,r.qin==null?"":r.qin,r.reduksi==null?"":r.reduksi,r.status==null?"":r.status].map(__csvq).join(",")); });
+  var ds=$("date-range-start").value, de=$("date-range-end").value;
+  var nama = filename || ("neraca_ciawi_" + (ds||"awal") + "_sd_" + (de||"akhir") + ".csv");
+  __tarikCSV(lines.join("\r\n"), nama);
+  alert("Tersimpan: " + nama + "\n" + src.length + " rekaman");
+}
+function exportRentangHourlyCSV(filename){
+  var src = rentangDipilih();
+  if (!src.length) { alert("Tidak ada data pada rentang yang dipilih. Cek tanggal awal/akhir."); return; }
+  src.sort(function(a,b){ return (a.tanggal+"T"+a.jam) < (b.tanggal+"T"+b.jam) ? -1 : 1; });
+  var buckets = {};
+  src.forEach(function(r){ var k=(r.tanggal||"")+" "+String(r.jam||"00:00").slice(0,2); (buckets[k]=buckets[k]||[]).push(r); });
+  var num=function(v){ if(v==null||v===""||v==="-") return null; var x=parseFloat(String(v).replace(",",".")); return isFinite(x)?x:null; };
+  var keys=Object.keys(buckets).sort();
+  var rows=keys.map(function(k,i){
+    var g=buckets[k], o={NO:i+1,TANGGAL:k.slice(0,10),JAM:k.slice(11,13)+":00"};
+    Object.keys(g[0]).forEach(function(key){
+      if(key==="no"||key==="tanggal"||key==="jam") return;
+      var vals=g.map(function(r){return num(r[key]);}).filter(function(x){return x!==null;});
+      o[key.toUpperCase()] = vals.length ? Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length*100)/100 : g[0][key];
+    });
+    return o;
+  });
+  if (!rows.length) { alert("Tidak ada data pada rentang yang dipilih."); return; }
+  var head=Object.keys(rows[0]);
+  var lines=[head.map(__csvq).join(",")].concat(rows.map(function(r){ return head.map(function(h){ return __csvq(r[h]); }).join(","); }));
+  var ds=$("date-range-start").value, de=$("date-range-end").value;
+  var nama = filename || ("neraca_ciawi_" + (ds||"awal") + "_sd_" + (de||"akhir") + "_per_jam.csv");
+  __tarikCSV(lines.join("\r\n"), nama);
+  alert("Tersimpan: " + nama + "\n" + rows.length + " baris per jam");
+}
+
+// --- unduh RENTANG + INTERVAL, diagregasi per jam ---
+// Menggabungkan tiga hal sekaligus:
+//   1. tanggal awal/akhir yang diketik (dd/mmm/yyyy di kotak tanggal)
+//   2. interval 5M..7D (mempengaruhi sampling, bukan kelewatan data)
+//   3. preset + pencarian
+// Semua rekaman yang cocok di_bucket per jam lalu dirata-ratakan, sehingga
+// hasilnya benar-benar "per jam" untuk rentang yang dipilih.
+function exportRentangPerJam(){
+  const ds=$("date-range-start").value, de=$("date-range-end").value;
+  const preset=currentPreset;
+  const q=($("table-search").value||"").trim().toLowerCase();
+
+  // Sengaja TIDAK memakai currentInterval: tombol ini berarti "seluruh
+  // rentang yang diketik, per jam". Kalau interval ikut dipakai, rentang
+  // 2023-2026 hanya menyisakan 7 hari terakhir (169 baris) - bukan yang
+  // diminta.
+  let src=baseData().filter(function(r){
+    if(ds && r.tanggal<ds) return false;
+    if(de && r.tanggal>de) return false;
+    if(preset==="siaga" && !(r.status && r.status.indexOf("Siaga")===0)) return false;
+    if(preset==="flushing" && !((r.status==="Flushing")||(r.sedimen!=null && r.sedimen<=1.0))) return false;
+    if(q){ const hay=(r.no+" "+r.tanggal+" "+r.jam+" "+r.elevasi+" "+(r.status||"")).toLowerCase(); if(hay.indexOf(q)===-1) return false; }
+    return true;
+  });
+  if(!src.length){ alert("Tidak ada data pada rentang itu. Cek tanggal awal/akhir (format dd/mmm/yyyy)."); return; }
+
+  const buckets={};
+  src.forEach(function(r){ const k=(r.tanggal||"")+" "+String(r.jam||"00:00").slice(0,2); (buckets[k]=buckets[k]||[]).push(r); });
+  const num=function(v){ if(v==null||v===""||v==="-") return null; const x=parseFloat(String(v).replace(",",".")); return isFinite(x)?x:null; };
+  const keys=Object.keys(buckets).sort();
+  const rows=keys.map(function(k,i){
+    const g=buckets[k], o={NO:i+1,TANGGAL:k.slice(0,10),JAM:k.slice(11,13)+":00"};
+    Object.keys(g[0]).forEach(function(key){
+      if(key==="no"||key==="tanggal"||key==="jam") return;
+      const vals=g.map(function(r){return num(r[key]);}).filter(function(x){return x!==null;});
+      o[key.toUpperCase()]=vals.length?Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length*100)/100:g[0][key];
+    });
+    return o;
+  });
+  const head=Object.keys(rows[0]);
+  const lines=[head.map(__csvq).join(",")].concat(rows.map(function(r){ return head.map(function(h){ return __csvq(r[h]); }).join(","); }));
+  const nama="neraca_ciawi_"+(ds||"awal")+"_sd_"+(de||"akhir")+"_per_jam.csv";
+  __tarikCSV(lines.join("\r\n"), nama);
+  alert("Tersimpan: "+nama+"\nRentang: "+(ds||"-")+" s/d "+(de||"-")+"\nBaris per jam: "+rows.length);
+}
+
 // unduh helper: BOM UTF-8 supaya Excel Indonesia membaca karakter dengan benar
 function __tarikCSV(csv, filename){
   var blob = new Blob(["\uFEFF"+csv], { type:"text/csv;charset=utf-8;" });
