@@ -21,7 +21,11 @@ export default async (req) => {
     const key = provider === "openai" ? process.env.OPENAI_API_KEY : process.env.GROQ_API_KEY;
     if (!key) return new Response(JSON.stringify({ ok: false, error: "kunci " + provider + " belum dipasang" }), { status: 503 });
     const url = provider === "openai" ? "https://api.openai.com/v1/chat/completions" : "https://api.groq.com/openai/v1/chat/completions";
-    const model = provider === "openai" ? "gpt-4o-mini" : "llama-3.3-70b-versatile";
+        // Model dibaca dari AI_MODEL bila diisi. Katalog Groq berubah-ubah
+        // (llama-3.3-70b-versatile tidak lagi ada di akun tertentu), jadi
+        // nama model harus bisa diatur tanpa menyentuh kode.
+        const fallback = provider === "openai" ? "gpt-4o-mini" : "qwen/qwen3.8-27b";
+        const model = process.env.AI_MODEL || fallback;
     const mm = [{ role: "system", content: sys }];
     msgs.forEach(function (m) { mm.push({ role: m.role === "model" ? "assistant" : "user", content: String(m.text || "").slice(0, 8000) }); });
     const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key }, body: JSON.stringify({ model: model, messages: mm, temperature: 0.4 }) });

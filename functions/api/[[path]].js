@@ -133,16 +133,16 @@ function makeReq(request, env, ctx) {
     bodyPromise = (async () => {
       const ct = request.headers.get("content-type") || "";
       try {
-        if (request.method === "GET" || request.method === "HEAD") return undefined;
+        if (request.method === "GET" || request.method === "HEAD") return {};
         if (ct.includes("application/json")) return await request.json();
         const txt = await request.text();
-        if (!txt) return undefined;
+        if (!txt) return {};
         if (ct.includes("application/x-www-form-urlencoded")) {
           return Object.fromEntries(new URLSearchParams(txt));
         }
         return txt;
       } catch {
-        return undefined;
+        return {};
       }
     })();
     return bodyPromise;
@@ -151,9 +151,20 @@ function makeReq(request, env, ctx) {
   return {
     method: request.method,
     url: request.url,
-    headers: Object.fromEntries(request.headers.entries()),
+    // Beberapa handler (ai.js) memanggil req.headers.get("x"), sementara
+    // handler gaya Node lain memakai req.headers["x"]. Beri objek yang
+    // mendukung keduanya: properti biasa + metode get().
+    headers: Object.assign(
+      Object.fromEntries(request.headers.entries()),
+      {
+        get: (k) => request.headers.get(k),
+        has: (k) => request.headers.has(k),
+      },
+    ),
     query,
     body: undefined, // diisi lazy oleh handler yang membacanya
+    // ai.js (signature Edge/Cloudflare) memanggil await req.json()
+    json: parseBody,
     env,
     ctx,
     _rawBody: parseBody,
