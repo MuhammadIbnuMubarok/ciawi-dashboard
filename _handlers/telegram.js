@@ -27,6 +27,17 @@ const m = (v) =>
   v === null || v === undefined || !isFinite(v) ? "tidak tersedia" : fmt2(v) + " m";
 
 /**
+ * Sensor yang baca 0,00 m praktis tidak berisi informasi: data nol berarti
+ * sensor mati / belum terkalibrasi. Nilai <= 0 dianggap tidak terbaca supaya
+ * laporan tidak menampilkan angka yang menyesatkan. Nilai negatif juga mustahil
+ * secara fisis untuk tinggi muka air.
+ */
+function tmaValid(v) {
+  if (v === null || v === undefined || !isFinite(v)) return false;
+  return Number(v) > 0;
+}
+
+/**
  * TITIK ACUAN (m dpl) - angka elevasi dihitung dari TMA real-time:
  *   elevasi = titikAcuan + TMA
  * Jadi ketika TMA naik/turun, angka pada laporan otomatis ikut berubah.
@@ -45,8 +56,13 @@ const ACUAN = {
 
 /** hitung elevasi dari TMA real-time (meter) */
 function elevasi(acuan, tma) {
+  // TMA null (sensor tidak terbaca) harus membuat elevasi null juga.
+  // Kalau tidak, `acuan + null` menghasilkan angka acuan sendiri yang
+  // terlihat seperti hasil pengukuran - menyesatkan.
   if (tma === null || tma === undefined || !isFinite(tma)) return null;
-  return Number(acuan) + Number(tma);
+  const t = Number(tma);
+  if (!isFinite(t)) return null;
+  return Number(acuan) + t;
 }
 
 /**
@@ -177,10 +193,11 @@ export default async function handler(req, res) {
 
     const [tma, cuaca] = await Promise.all([ambilTma(), ambilCuaca()]);
 
-    const cIn = tma.ciawi.inlet?.tma ?? null;
-    const cOut = tma.ciawi.outlet?.tma ?? null;
-    const sIn = tma.sukamahi.inlet?.tma ?? null;
-    const sOut = tma.sukamahi.outlet?.tma ?? null;
+    // TMA dari sensor: nilai <= 0 dianggap tidak terbaca (sensor mati).
+    const cIn = tmaValid(tma.ciawi.inlet?.tma) ? tma.ciawi.inlet.tma : null;
+    const cOut = tmaValid(tma.ciawi.outlet?.tma) ? tma.ciawi.outlet.tma : null;
+    const sIn = tmaValid(tma.sukamahi.inlet?.tma) ? tma.sukamahi.inlet.tma : null;
+    const sOut = tmaValid(tma.sukamahi.outlet?.tma) ? tma.sukamahi.outlet.tma : null;
 
     // Elevasi dihitung dari TMA real-time: elevasi = titikAcuan + TMA.
     const cInEl = elevasi(ACUAN.ciawi.inlet, cIn);
