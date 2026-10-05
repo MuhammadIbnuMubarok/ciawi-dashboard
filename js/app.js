@@ -324,6 +324,10 @@ const step=Math.max(1,Math.ceil(d.labels.length/6));
 // tetap supaya kelihatan "ada slot tapi kosong", bukan 2px yang hilang.
 // Versi lama memakai Math.max(2,(qi||0)/mx*100) sehingga bar null hanya
 // 3px - praktis tidak terlihat dan tidak ada penjelasan apa pun.
+// 44 bulan dalam lebar panel ~260px memberi tiap grup hanya ~4px, dibagi 3
+// seri menjadi 0px - bar punya tinggi tapi tak terlihat sama sekali.
+// Versi lama memakai w-full sehingga flex-1 shrinks ke nol.
+// Fix: tiap grup lebar minimum 22px dan area dapat di-scroll horizontal.
 const SLOT='flex-1 w-1/3 flex items-end';
 const EMPTY='<div class="'+SLOT+' h-full"><div class="w-full h-2 rounded-t" style="background:repeating-linear-gradient(45deg,rgba(148,163,184,.35) 0 3px,transparent 3px 6px);border-top:1px dashed rgba(148,163,184,.6)"></div></div>';
 // Warna lewat inline style, bukan kelas utilitas bg-[#hex]. Kelas arbitrary
@@ -338,20 +342,22 @@ const bars=d.labels.map((L,i)=>{
   // L sudah memuat "Sen 26 Mar 2023 16:00"; tambahkan tooltip tanggal penuh
   // agar tanggal/bulan/tahun selalu terbaca tanpa harus hover.
   const tgl=L.replace(/^\\S+\\s+/,"");
-  return '<div class="flex-1 flex flex-col justify-end h-full" onclick="selectDataPoint('+i+')" title="'+L+'" style="height:100%">'+
+  return '<div class="flex flex-col justify-end shrink-0" style="width:22px;height:100%" onclick="selectDataPoint('+i+')" title="'+L+'">'+
     '<div class="w-full flex items-end justify-center gap-[2px]" style="height:100%">'+
     bar(qi,WARNA.qin,"Q In "+tgl+" = "+(qi==null?"tidak terekam":fmt2(qi)+" m3/s"))+
     bar(qo,WARNA.qout,"Q Out "+tgl+" = "+(qo==null?"tidak terekam":fmt2(qo)+" m3/s"))+
     bar(rd,WARNA.red,"Reduksi "+tgl+" = "+(rd==null?"tidak terekam":fmt2(rd)+" m3/s"))+
   '</div></div>';}).join("");
 const labs=d.labels.map((L,i)=>{
-  // Sumbu: 44 slot dalam lebar ~400px, jadi font kecil + sebagian label
-  // disembunyikan. Tanggal lengkap tetap ada di title (hover) dan tooltip bar.
+  // Sumbu: scroll mengikuti area bar, tanggal/bulan/tahun selalu terbaca
+  // lewat tooltip. Font kecil + sebagian label disembunyikan agar tidak padat.
   const tgl=L.replace(/^\\S+\\s+/,"");
-  return '<div class="flex-1 text-[8px] leading-tight text-on-surface-variant text-center truncate'+(i%step===0?'':' opacity-0')+'" title="'+L+'">'+tgl+'</div>';}).join("");
-el.innerHTML='<div class="text-[10px] text-on-surface-variant text-right mb-1">Terekam: Q In '+nIn+'/'+d.labels.length+' • Q Out '+nOut+'/'+d.labels.length+' bulan</div>'+
- '<div class="flex items-end gap-[2px]" style="height:118px">'+bars+'</div>'+
- '<div class="flex gap-[2px] pt-1 mt-1 border-t border-outline-variant/30">'+labs+'</div>';
+  return '<div class="shrink-0 text-[8px] leading-tight text-on-surface-variant text-center truncate" style="width:22px" title="'+L+'">'+tgl+'</div>';}).join("");
+el.innerHTML='<div class="text-[10px] text-on-surface-variant text-right mb-1">Terekam: Q In '+nIn+'/'+d.labels.length+' • Q Out '+nOut+'/'+d.labels.length+' bulan • geser ke bawah</div>'+
+ '<div class="overflow-x-auto overflow-y-hidden pb-1">'+
+   '<div class="flex items-end gap-[2px]" style="height:118px;min-width:'+(d.labels.length*24)+'px">'+bars+'</div>'+
+   '<div class="flex gap-[2px] pt-1 mt-1 border-t border-outline-variant/30" style="min-width:'+(d.labels.length*24)+'px">'+labs+'</div>'+
+ '</div>';
 const sum=document.getElementById('metric-reduksi-summary');
 if(sum) sum.textContent="Terekam Q In "+nIn+" & Q Out "+nOut+" dari "+d.labels.length+" bulan • bar bergaris = tidak terekam";}
 function tipBox(){let t=document.getElementById("hover-tip");if(!t){t=document.createElement("div");t.id="hover-tip";t.style.cssText="position:fixed;z-index:9999;pointer-events:none;display:none;background:rgba(11,19,38,.95);border:1px solid rgba(76,215,246,.4);border-radius:6px;padding:6px 8px;font-size:11px;line-height:1.5;color:#e6edf7;max-width:280px;box-shadow:0 6px 18px rgba(0,0,0,.5);";document.body.appendChild(t);}return t;}
