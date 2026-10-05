@@ -55,11 +55,20 @@ const PHASES={
 };
 function statusBadge(s){if(s==null)return '<span class="px-2 py-0.5 rounded border border-outline-variant/40 text-on-surface-variant text-[10px]">TIDAK TERCATAT</span>';const c={"Normal":"siaga-normal","Siaga IV":"siaga-4","Siaga III":"siaga-3","Siaga II":"siaga-2","Siaga I":"siaga-1","Flushing":"secondary"}[s]||"on-surface-variant";return '<span class="px-2 py-0.5 rounded border border-'+c+'/40 bg-'+c+'/10 text-'+c+' text-[10px] font-bold">'+s.toUpperCase()+'</span>';}
 function qbar(v,mx,c){return '<div class="flex-1 '+c+' rounded-t" style="height:'+Math.max(2,v==null?3:(v/mx)*100)+'%" title="'+(v==null?"tidak terekam":fmt2(v))+'"></div>';}
-function applyFilters(){const q=$("table-search").value.trim().toLowerCase();const ds=$("date-range-start").value,de=$("date-range-end").value;let d=getBaseDataset().filter(r=>{if(!selectedYears.has(r.tanggal.slice(0,4)))return false;if(!selectedMonths.has(r.tanggal.slice(5,7)))return false;if(ds&&r.tanggal<ds)return false;if(de&&r.tanggal>de)return false;if(currentPreset==="siaga"&&!(r.status&&r.status.indexOf("Siaga")===0))return false;if(currentPreset==="flushing"&&!((r.status==="Flushing")||(r.sedimen!=null&&r.sedimen<=1.0)))return false;if(q){const hay=(r.no+" "+r.tanggal+" "+r.jam+" "+r.elevasi+" "+(r.status||"")).toLowerCase();if(hay.indexOf(q)===-1)return false;}return true;});const WIN={"5m":5,"15m":15,"30m":30,"1h":60,"6h":360,"24h":1440,"7d":10080}[currentInterval]||60;const __now=Date.now();d=d.filter(r=>{const t=new Date(r.tanggal+"T"+r.jam).getTime();return (__now-t)<=WIN*60000;});d.sort((a,b)=>((a.tanggal+"T"+a.jam)<(b.tanggal+"T"+b.jam)?1:-1));workingDataset=d;currentPage=1;renderTable();}
+function applyFilters(){const q=$("table-search").value.trim().toLowerCase();const ds=$("date-range-start").value,de=$("date-range-end").value;let d=getBaseDataset().filter(r=>{if(!selectedYears.has(r.tanggal.slice(0,4)))return false;if(!selectedMonths.has(r.tanggal.slice(5,7)))return false;if(ds&&r.tanggal<ds)return false;if(de&&r.tanggal>de)return false;if(currentPreset==="siaga"&&!(r.status&&r.status.indexOf("Siaga")===0))return false;if(currentPreset==="flushing"&&!((r.status==="Flushing")||(r.sedimen!=null&&r.sedimen<=1.0)))return false;if(q){const hay=(r.no+" "+r.tanggal+" "+r.jam+" "+r.elevasi+" "+(r.status||"")).toLowerCase();if(hay.indexOf(q)===-1)return false;}return true;});const WIN={"5m":5,"15m":15,"30m":30,"1h":60,"6h":360,"24h":1440,"7d":10080}[currentInterval]||60;// Jendela waktu harus diukur dari REKAMAN TERAKHIR, bukan Date.now().
+  // Data NERACA berakhir Juli 2026; memakai jam sekarang membuat selisih
+  // 3 bulan sehingga rentang 5m..7d selalu kosong.
+  const __src = getBaseDataset ? getBaseDataset() : d;
+  let __latest = 0;
+  for (const r of __src) {
+    const t = new Date(r.tanggal + "T" + r.jam).getTime();
+    if (isFinite(t) && t > __latest) __latest = t;
+  }
+  const __now = __latest || Date.now();
+  d = d.filter(r => { const t = new Date(r.tanggal + "T" + r.jam).getTime(); return (__now - t) <= WIN * 60000; });d.sort((a,b)=>((a.tanggal+"T"+a.jam)<(b.tanggal+"T"+b.jam)?1:-1));workingDataset=d;currentPage=1;renderTable();}
 function filterTableBySearch(){applyFilters();}
 function filterTablePreset(p){currentPreset=p;["all","siaga","flushing"].forEach(k=>$("tbl-btn-"+k).classList.toggle("active",k===p));applyFilters();}
 function setIntervalSampling(v){currentInterval=v;["5m","15m","30m","1h","6h","24h","7d"].forEach(k=>$("int-"+k).classList.toggle("active",k===v));applyFilters();}
-function resetDateRangeFilter(){$("date-range-start").value="2024-12-01";$("date-range-end").value="2026-07-31";applyFilters();}
 function changePageSize(v){pageSize=v==="all"?100000:+v;currentPage=1;renderTable();}
 function goToPage(n){currentPage=n;renderTable();}
 function goToPrevPage(){if(currentPage>1){currentPage--;renderTable();}}
@@ -69,7 +78,6 @@ function exportTableToCSV(filename){const head=["NO","TANGGAL","JAM","ELEVASI_M"
 function downloadFilteredData(){exportTableToCSV("neraca_ciawi_terfilter_"+new Date().toISOString().slice(0,10)+".csv");}
 function setDatasetFilter(key){currentChart=key;document.querySelectorAll(".chart-filter-btn").forEach(b=>b.classList.remove("active"));const b=$("filter-"+key);if(b)b.classList.add("active");renderChart(key);}
 function selectDataPoint(i){const d=CHART_SCENARIOS[currentChart];const qi=d.inflows[i],qo=d.outflows[i];const rd=(qi!=null&&qo!=null)?qi-qo:null;$("chart-cursor-info").innerHTML="<b class='text-primary'>"+d.labels[i]+"</b> • Elv. <b>"+fmt2(d.elevations[i])+" m</b> • Vol. <b>"+fmt2(d.volumes[i])+" m³</b> • Q In <b>"+(qi==null?"tidak terekam":fmt2(qi)+" m³/s")+"</b> • Q Out <b>"+(qo==null?"tidak terekam":fmt2(qo)+" m³/s")+"</b> • Reduksi <b>"+(rd==null?"—":fmt2(rd)+" m³/s")+"</b>";}
-function renderBars(d){const el=$("inflow-outflow-bars");if(d.qNull){el.innerHTML='<div class="w-full h-full flex items-center justify-center text-[11px] text-siaga-3 border border-dashed border-siaga-3/40 rounded p-2 text-center">Telemetri debit (Q In / Q Out) tidak terekam pada periode ini — hanya elevasi & volume tersedia di NERACA.csv.</div>';return;}const mx=Math.max.apply(null,d.inflows.concat(d.outflows).filter(v=>v!=null))||1;el.innerHTML=d.labels.map((lb,i)=>{const qi=d.inflows[i],qo=d.outflows[i],rd=(qi!=null&&qo!=null)?qi-qo:null;return '<div class="flex-1 h-full flex items-end gap-[2px] cursor-pointer" onclick="selectDataPoint('+i+')" title="'+lb+'">'+qbar(qi,mx,"bg-siaga-2")+qbar(qo,mx,"bg-primary")+qbar(rd,mx,"bg-siaga-normal")+"</div>";}).join("");}
 function renderSedimenBars(d){const mx=Math.max.apply(null,d.sedimen)||1;$("sedimen-bars").innerHTML=d.sedimen.map((s,i)=>'<div class="flex-1 h-full flex items-end cursor-pointer" onclick="selectDataPoint('+i+')" title="'+d.labels[i]+'"><div class="w-full bg-tertiary-container rounded-t" style="height:'+Math.max(2,(s/mx)*100)+'%"></div></div>').join("");$("sedimen-summary").textContent="Sedimen maks periode ini: "+fmt2(mx)+" m • ambang perhatian > 10,00 m";}
 function renderChart(key){const d=CHART_SCENARIOS[key];if(!d||!d.elevations||!d.elevations.length){["chart-grid","chart-dots-group","chart-xlabels"].forEach(id=>{const e=$(id);if(e)e.innerHTML="";});["chart-elevation-line","chart-volume-line","chart-volume-area"].forEach(id=>{const e=$(id);if(e)e.setAttribute("d","");});const ib=$("inflow-outflow-bars");if(ib)ib.innerHTML="";const sb=$("sedimen-bars");if(sb)sb.innerHTML="";const mc=$("chart-margin-chip");if(mc)mc.textContent="MARGIN KE PELIMPAH: —";const ci=$("chart-cursor-info");if(ci)ci.textContent="Belum ada data ditampilkan - centang tahun dan bulan pada panel filter untuk menyalakan grafik & tabel.";return;}const n=d.elevations.length;const lo=Math.min.apply(null,d.elevations),hi=Math.max.apply(null,d.elevations);const minElv=lo-2;const maxElv=hi+((hi-lo)<8?2.5:6);const maxVol=(Math.max.apply(null,d.volumes)*1.15)||1;const X=i=>70+i*((860-70)/Math.max(1,n-1));const EY=v=>200-((Math.max(minElv,Math.min(maxElv,v))-minElv)/(maxElv-minElv))*175;const VY=v=>200-Math.min(1,v/maxVol)*175;let g="";for(let i=0;i<=4;i++){const y=200-i*43.75;const elv=minElv+(maxElv-minElv)*i/4;const vol=maxVol*i/4;g+='<line x1="70" y1="'+y+'" x2="860" y2="'+y+'" stroke="#222a3d" stroke-width="1"/>';g+='<text x="64" y="'+(y+3)+'" fill="#bcc9cd" font-size="9" font-family="JetBrains Mono" text-anchor="end">'+elv.toFixed(1)+"</text>";g+='<text x="866" y="'+(y+3)+'" fill="#38BDF8" font-size="9" font-family="JetBrains Mono">'+(vol>=1000000?(vol/1000000).toFixed(1)+" jt":vol>=1000?Math.round(vol/1000)+" rb":vol.toFixed(0))+"</text>";}if(546.75>=minElv&&546.75<=maxElv){const y=EY(546.75);g+='<line x1="70" y1="'+y+'" x2="860" y2="'+y+'" stroke="#FBBF24" stroke-dasharray="5 4" stroke-width="1.2"/><text x="72" y="'+(y-4)+'" fill="#FBBF24" font-size="9" font-family="JetBrains Mono">ELV. PELIMPAH 546,75 m</text>';}$("chart-grid").innerHTML=g;let ep="",vp="",va="M "+X(0)+",200";for(let i=0;i<n;i++){ep+=(i?" L ":"M ")+X(i)+","+EY(d.elevations[i]);vp+=(i?" L ":"M ")+X(i)+","+VY(d.volumes[i]);va+=" L "+X(i)+","+VY(d.volumes[i]);}va+=" L "+X(n-1)+",200 Z";$("chart-elevation-line").setAttribute("d",ep);$("chart-volume-line").setAttribute("d",vp);$("chart-volume-area").setAttribute("d",va);let dots="";for(let i=0;i<n;i++){dots+='<circle cx="'+X(i)+'" cy="'+EY(d.elevations[i])+'" r="4.5" fill="#0b1326" stroke="#4cd7f6" stroke-width="2" style="cursor:pointer" onclick="selectDataPoint('+i+')"><title>'+d.labels[i]+"</title></circle>";}$("chart-dots-group").innerHTML=dots;let xl="";const step=Math.max(1,Math.ceil(n/4));for(let i=0;i<n;i+=step){xl+='<text x="'+X(i)+'" y="218" fill="#bcc9cd" font-size="9" font-family="JetBrains Mono" text-anchor="middle">'+d.labels[i]+"</text>";}if((n-1)%step!==0){xl+='<text x="'+X(n-1)+'" y="218" fill="#bcc9cd" font-size="9" font-family="JetBrains Mono" text-anchor="middle">'+d.labels[n-1]+"</text>";}$("chart-xlabels").innerHTML=xl;$("chart-margin-chip").textContent="MARGIN KE PELIMPAH: "+fmt2(546.75-hi)+" m";$("metric-reduksi-summary").textContent=d.summary;renderBars(d);renderSedimenBars(d);$("chart-cursor-info").textContent="Klik titik data pada grafik untuk membaca elevasi, Q In, dan reduksi per timestamp.";}
 function setDryDamPhase(n){const p=PHASES[n];$("dam-water-path").setAttribute("d",p.waterPath);$("water-level-text").setAttribute("y",p.waterY-6);$("water-level-text").textContent=p.waterText;$("water-level-line").setAttribute("y2",p.waterY);$("dam-conduit").setAttribute("y",258-p.conduitH);$("dam-conduit").setAttribute("height",p.conduitH);$("dam-outflow").setAttribute("y",260-p.conduitH);$("dam-outflow").setAttribute("height",Math.max(4,p.conduitH-4));$("dam-splash").setAttribute("rx",14*p.splashScale);document.querySelectorAll("#dam-inflow path").forEach(el=>el.setAttribute("stroke-width",p.inflowWidth));$("phase-title").textContent=p.title;$("phase-desc").textContent=p.desc;$("phase-badge").textContent=p.badge;document.querySelectorAll(".phase-btn").forEach((b,i)=>b.classList.toggle("active",i===n-1));}
@@ -82,25 +90,19 @@ function startClock(){const f=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Ja
 document.addEventListener("DOMContentLoaded",function(){initStats();applyFilters();setDatasetFilter("all-overview");setDryDamPhase(1);startClock();});
 
 
-function buildOverview(){const src=(typeof getBaseDataset==="function")?getBaseDataset():REAL_DATA;const by={};src.forEach(r=>{if(r==null||r.elevasi==null)return;const k=r.tanggal.slice(0,7);if(!by[k]||r.elevasi>by[k].elevasi)by[k]=r;});const keys=Object.keys(by).sort();return {labels:keys.map(k=>hariISO(by[k].tanggal)+" "+tglID(by[k].tanggal)+" "+by[k].jam),elevations:keys.map(k=>by[k].elevasi),volumes:keys.map(k=>by[k].vol),inflows:keys.map(k=>by[k].qin),outflows:keys.map(k=>by[k].qout_total),sedimen:keys.map(k=>by[k].sedimen==null?0:by[k].sedimen),summary:"Puncak elevasi per bulan - dihitung otomatis dari seluruh rekaman NERACA + live",qNull:false};}
 CHART_SCENARIOS["all-overview"]=buildOverview();
 
 /* init dipindah ke blok bawah */
 for(let i=1;i<=12;i++)selectedMonths.add(String(i).padStart(2,"0"));
 function monthCounts(){const src=(typeof getBaseDataset==="function")?getBaseDataset():REAL_DATA;const c={};src.forEach(r=>{const m=r.tanggal.slice(5,7);c[m]=(c[m]||0)+1;});return c;}
 function renderMonthChecks(){const box=document.getElementById("month-checks");if(!box)return;const c=monthCounts();let h="";for(let i=1;i<=12;i++){const m=String(i).padStart(2,"0");h+='<label class="flex items-center gap-1 text-[11px] bg-surface-container px-2 py-1 rounded cursor-pointer hover:bg-surface-container-high"><input type="checkbox" '+(selectedMonths.has(m)?"checked":"")+' onchange="toggleMonth(\''+m+'\',this.checked)" class="rounded bg-surface-container-lowest border-outline-variant/60"><span class="text-on-surface font-bold">'+MONTHS[i-1]+'</span><span class="text-on-surface-variant">('+(c[m]||0)+')</span></label>';}box.innerHTML=h;}
-function toggleMonth(m,on){if(on)selectedMonths.add(m);else selectedMonths.delete(m);applyFilters();if(typeof currentChart!=="undefined"&&currentChart==="all-overview")renderChart("all-overview");}
-function setAllMonths(all){selectedMonths=new Set();if(all){for(let i=1;i<=12;i++)selectedMonths.add(String(i).padStart(2,"0"));}renderMonthChecks();applyFilters();if(typeof currentChart!=="undefined"&&currentChart==="all-overview")renderChart("all-overview");}
 
 /* deklarasi selectedYears dipindah ke baris atas */
 function yearCounts(){const src=(typeof getBaseDataset==="function")?getBaseDataset():REAL_DATA;const c={};src.forEach(r=>{const y=r.tanggal.slice(0,4);c[y]=(c[y]||0)+1;});return c;}
 function renderYearChecks(){const box=document.getElementById("year-checks");if(!box)return;const c=yearCounts();const years=Object.keys(c).sort();box.innerHTML=years.map(y=>'<label class="flex items-center gap-1 text-[11px] bg-surface-container px-2 py-1 rounded cursor-pointer hover:bg-surface-container-high"><input type="checkbox" '+(selectedYears.has(y)?"checked":"")+' onchange="toggleYear(\''+y+'\',this.checked)" class="rounded bg-surface-container-lowest border-outline-variant/60"><span class="text-on-surface font-bold">'+y+'</span><span class="text-on-surface-variant">('+c[y]+')</span></label>').join("");}
-function toggleYear(y,on){if(on)selectedYears.add(y);else selectedYears.delete(y);applyFilters();if(typeof currentChart!=="undefined"&&currentChart==="all-overview")renderChart("all-overview");}
-function setAllYears(all){const c=yearCounts();selectedYears=new Set(all?Object.keys(c):[]);renderYearChecks();applyFilters();if(typeof currentChart!=="undefined"&&currentChart==="all-overview")renderChart("all-overview");}
 function inFilter(r){return selectedYears.has(r.tanggal.slice(0,4))&&selectedMonths.has(r.tanggal.slice(5,7));}
 function buildEvent(from,to){const src=(typeof getBaseDataset==="function")?getBaseDataset():REAL_DATA;const rows=src.filter(r=>r.tanggal>=from&&r.tanggal<=to&&inFilter(r)).sort((x,z)=>((x.tanggal+"T"+x.jam)<(z.tanggal+"T"+z.jam)?-1:1));if(!rows.length)return null;return {labels:rows.map(r=>hariISO(r.tanggal)+" "+tglID(r.tanggal)+" "+r.jam),elevations:rows.map(r=>r.elevasi),volumes:rows.map(r=>r.vol),inflows:rows.map(r=>r.qin),outflows:rows.map(r=>r.qout_total),sedimen:rows.map(r=>r.sedimen==null?0:r.sedimen),qNull:rows.every(r=>r.qin==null),summary:"Puncak Elv. "+fmt2(Math.max.apply(null,rows.map(r=>r.elevasi)))+" m - dihitung langsung dari NERACA"};}
 function refreshAllScenarios(){const ev={"flood-jul2025":["2025-07-06","2025-07-06"],"flood-mar2025":["2025-03-15","2025-03-15"],"flood-dec2025":["2025-12-05","2025-12-05"],"flood-feb2026":["2026-02-16","2026-02-17"],"flood-apr2026":["2026-04-20","2026-04-20"]};Object.keys(ev).forEach(k=>{const s=buildEvent(ev[k][0],ev[k][1]);if(s)CHART_SCENARIOS[k]=s;});CHART_SCENARIOS["all-overview"]=buildOverview();}
-function buildOverview(){const src=((typeof getBaseDataset==="function")?getBaseDataset():REAL_DATA).filter(r=>selectedYears.has(r.tanggal.slice(0,4))&&selectedMonths.has(r.tanggal.slice(5,7)));const by={};src.forEach(r=>{if(r==null||r.elevasi==null)return;const k=r.tanggal.slice(0,7);if(!by[k]||r.elevasi>by[k].elevasi)by[k]=r;});const keys=Object.keys(by).sort();return {labels:keys.map(k=>hariISO(by[k].tanggal)+" "+tglID(by[k].tanggal)+" "+by[k].jam),elevations:keys.map(k=>by[k].elevasi),volumes:keys.map(k=>by[k].vol),inflows:keys.map(k=>by[k].qin),outflows:keys.map(k=>by[k].qout_total),sedimen:keys.map(k=>by[k].sedimen==null?0:by[k].sedimen),summary:"Puncak elevasi per bulan (tahun & bulan tercentang) - otomatis dari NERACA + live",qNull:false};}
 selectedYears=new Set(Object.keys(yearCounts()));
 refreshAllScenarios();
 document.addEventListener("DOMContentLoaded",function(){renderYearChecks();renderMonthChecks();applyFilters();if(typeof currentChart!=="undefined"&&currentChart==="all-overview")renderChart("all-overview");});
@@ -122,8 +124,6 @@ document.addEventListener("DOMContentLoaded",function(){updateTrendLabel();});
 
 
 
-function updateDamLive(r){const y=Math.max(62,280-((r.elevasi-504.20)/(550.39-504.20))*220);const ln=document.getElementById("wl-live-line");if(ln){ln.setAttribute("y1",y);ln.setAttribute("y2",y);}const lb=document.getElementById("wl-live-label");if(lb){lb.setAttribute("y",y-5);lb.textContent="WL LIVE: "+r.elevasi.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})+" m";}const st=document.getElementById("dam-live-status");if(st){st.textContent="KONDISI LIVE: "+(r.status||"—").toUpperCase()+" • ELV "+r.elevasi.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})+" m • QOUT "+r.qoutT.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})+" m³/s";}}
-function updateDamLive(r){const tIn=r.elevasi-504.20;const tOut=r.F;const y=Math.max(62,280-((r.elevasi-504.20)/(550.39-504.20))*220);const ln=document.getElementById("wl-live-line");if(ln){ln.setAttribute("y1",y);ln.setAttribute("y2",y);}const lb=document.getElementById("wl-live-label");if(lb){lb.setAttribute("y",y-5);lb.textContent="TMA INLET LIVE: "+tIn.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})+" m";}const lo=document.getElementById("tma-out-label");if(lo){lo.textContent="TMA OUTLET LIVE: "+tOut.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})+" m";}const st=document.getElementById("dam-live-status");if(st){st.textContent="KONDISI LIVE: "+(r.status||"—").toUpperCase()+" • TMA IN "+tIn.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})+" m • TMA OUT "+tOut.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})+" m • QOUT "+r.qoutT.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})+" m³/s";}}
 
 function updateDamLive(r){const tIn=r.elevasi-504.20;const tOut=r.F;const y=Math.max(62,Math.min(258,252-((r.elevasi-505.70)/44.69)*190));
 const ln=document.getElementById("wl-live-line");if(ln){ln.setAttribute("y1",y);ln.setAttribute("y2",y);}const lb=document.getElementById("wl-live-label");
@@ -170,7 +170,6 @@ function crossHost(h){if(getComputedStyle(h).position==="static")h.style.positio
 function crossShow(h,x,y){let v=h.querySelector(".xc-v"),g=h.querySelector(".xc-h");if(!v){v=document.createElement("div");v.className="xc-v";v.style.cssText="position:absolute;pointer-events:none;top:0;bottom:0;width:0;border-left:1px dashed rgba(76,215,246,.55);display:none;";h.appendChild(v);}
 if(!g){g=document.createElement("div");g.className="xc-h";g.style.cssText="position:absolute;pointer-events:none;left:0;right:0;height:0;border-top:1px dashed rgba(76,215,246,.35);display:none;";h.appendChild(g);}v.style.left=x+"px";v.style.display="block";if(y==null){g.style.display="none";}else{g.style.top=y+"px";g.style.display="block";}}
 function crossHide(h){if(!h)return;const v=h.querySelector(".xc-v"),g=h.querySelector(".xc-h");if(v)v.style.display="none";if(g)g.style.display="none";}
-function trendSvg(){if(window.__tsvg&&document.contains(window.__tsvg))return window.__tsvg;let best=null,bn=0;document.querySelectorAll("svg").forEach(sv=>{const c=sv.querySelectorAll("circle").length;if(c>bn){bn=c;best=sv;}});window.__tsvg=best;return best;}
 function fmtN(v,u){return v==null?"—":(+v).toLocaleString("id-ID",{maximumFractionDigits:2})+(u||"");}
 function tipTrend(i){const d=CHART_SCENARIOS[currentChart];if(!d)return "";const red=(d.inflows[i]!=null&&d.outflows[i]!=null)?Math.max(0,d.inflows[i]-d.outflows[i]):null;return "<b>"+d.labels[i]+"</b><br>Elevasi: "+fmtN(d.elevations[i]," m")+"<br>Volume: "+fmtN(d.volumes[i]," m³")+"<br>Q In: "+fmtN(d.inflows[i]," m³/s")+"<br>Q Out: "+fmtN(d.outflows[i]," m³/s")+"<br>Reduksi: "+fmtN(red," m³/s")+"<br>Sedimen: "+fmtN(d.sedimen[i]," m");}
 function hoverTrend(e){const sv=trendSvg();if(!sv)return false;const r=sv.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom){crossHide(sv.parentElement);return false;}
@@ -223,35 +222,10 @@ const _udlT=updateDamLive;updateDamLive=function(r){_udlT(r);if(proxyState==="of
 function trendSvg(){if(window.__tsvg2&&document.contains(window.__tsvg2))return window.__tsvg2;let best=null,bn=0;document.querySelectorAll("svg").forEach(function(sv){if(sv.querySelector("[id^=dam-],#wl-live-line,#tma-out-label"))return;const c=sv.querySelectorAll("circle").length;if(c>bn){bn=c;best=sv;}});window.__tsvg2=best;return best;}
 
 
-// --- ekspor agregat per jam (patch 2026-09-24) ---
-function exportHourlyCSV(filename){
-  const src = workingDataset || [];
-  if (!src.length) { alert("Tidak ada data pada rentang aktif untuk diagregasi per jam."); return; }
-  const buckets = new Map();
-  src.forEach(r => {
-    const k = (r.tanggal || "") + " " + String(r.jam || "00:00").slice(0, 2);
-    if (!buckets.has(k)) buckets.set(k, []);
-    buckets.get(k).push(r);
-  });
-  const num = v => { if (v == null || v === "" || v === "-") return null; const x = parseFloat(String(v).replace(",", ".")); return Number.isFinite(x) ? x : null; };
-  const agg = [...buckets.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map((e, idx) => {
-    const g = e[1];
-    const out = { no: idx + 1, tanggal: e[0].slice(0, 10), jam: e[0].slice(11, 13) + ":00" };
-    Object.keys(g[0]).forEach(key => {
-      if (key === "no" || key === "tanggal" || key === "jam") return;
-      const vals = g.map(r => num(r[key])).filter(x => x !== null);
-      if (vals.length) { out[key] = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100; }
-      else { out[key] = g[0][key]; }
-    });
-    return out;
-  });
-  const old = workingDataset;
-  workingDataset = agg;
-  try { exportTableToCsv(filename || "neraca_per_jam.csv"); } finally { workingDataset = old; }
-}
-
-// --- pengutip field CSV RFC-4180 (patch 2026-09-24) ---
-function __csvq(v){return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';}
+// Angka dari hitungan floating point bisa muncul sebagai 505.71999999999997.
+  // Bulatkan ke 2 desimal supaya file rapi dan langsung bisa dipakai di Excel.
+  function __num(v){ if(v==null||v==="") return ""; const n=parseFloat(v); return isFinite(n)?String(Math.round(n*100)/100):String(v); }
+function __csvq(v){return '"' + String(v == null ? '' : (typeof v==="number"?__num(v):v)).replace(/"/g, '""') + '"';}
 
 // --- exportHourlyCSV MANDIRI (v2): agregasi per jam, serializer sendiri + BOM ---
 function exportHourlyCSV(filename){
