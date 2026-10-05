@@ -342,19 +342,15 @@ const bars=d.labels.map((L,i)=>{
   // L sudah memuat "Sen 26 Mar 2023 16:00"; tambahkan tooltip tanggal penuh
   // agar tanggal/bulan/tahun selalu terbaca tanpa harus hover.
   const tgl=L.replace(/^\\S+\\s+/,"");
-  return '<div class="flex flex-col justify-end shrink-0" style="width:22px;height:100%" onclick="selectDataPoint('+i+')" title="'+L+'">'+
+  return '<div class="flex flex-col justify-end shrink-0" style="width:18px;height:100%" onclick="selectDataPoint('+i+')" title="'+L+'">'+
     '<div class="w-full flex items-end justify-center gap-[2px]" style="height:100%">'+
     bar(qi,WARNA.qin,"Q In "+tgl+" = "+(qi==null?"tidak terekam":fmt2(qi)+" m3/s"))+
     bar(qo,WARNA.qout,"Q Out "+tgl+" = "+(qo==null?"tidak terekam":fmt2(qo)+" m3/s"))+
     bar(rd,WARNA.red,"Reduksi "+tgl+" = "+(rd==null?"tidak terekam":fmt2(rd)+" m3/s"))+
   '</div></div>';}).join("");
-const labs=d.labels.map((L,i)=>{
-  // Sumbu: scroll mengikuti area bar, tanggal/bulan/tahun selalu terbaca
-  // lewat tooltip. Font kecil + sebagian label disembunyikan agar tidak padat.
-  const tgl=L.replace(/^\\S+\\s+/,"");
-  return '<div class="shrink-0 text-[8px] leading-tight text-on-surface-variant text-center truncate" style="width:22px" title="'+L+'">'+tgl+'</div>';}).join("");
+const labs='<div class="text-[9px] text-on-surface-variant text-center italic" style="min-width:'+(d.labels.length*24)+'px">Geser bar ke kiri/kanan • arahkan kursor untuk tanggal &amp; nilai lengkap</div>';
 const barsArea='<div class="flex items-end gap-[2px]" style="height:118px;min-width:'+(d.labels.length*24)+'px">'+bars+'</div>'+
-   '<div class="flex gap-[2px] pt-1 mt-1 border-t border-outline-variant/30" style="min-width:'+(d.labels.length*24)+'px">'+labs+'</div>';
+   labs;
 el.innerHTML='<div class="text-[10px] text-on-surface-variant text-right mb-1">Terekam: Q In '+nIn+'/'+d.labels.length+' • Q Out '+nOut+'/'+d.labels.length+' bulan • geser ke bawah</div>'+
  '<div class="overflow-x-auto overflow-y-hidden pb-1" id="qbar-scroll">'+barsArea+'</div>';
 // Data debit sangat jarang (12 dari 44 bulan), dan hampir semuanya berada
