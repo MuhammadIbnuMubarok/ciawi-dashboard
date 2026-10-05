@@ -1,2 +1,3 @@
-// api/live.js — proxy telemetri SDA
-module.exports = require('./proxy.js');
+// api/live.js - proxy telemetri SDA [EDGE]
+export const config = { runtime: "edge" };
+export { default } from "./proxy.js";

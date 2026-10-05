@@ -1,0 +1,227 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Piezometer Bendungan Ciawi</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0e27; color: #e0e0e0; min-height: 100vh; }
+.header { background: linear-gradient(135deg, #1a1f3a 0%, #0d1230 100%); padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2a3f6f; }
+.header h1 { font-size: 24px; color: #fff; }
+.header h1 span { color: #4fc3f7; }
+.btn-group { display: flex; gap: 10px; }
+.btn { padding: 10px 20px; border: 1px solid #4fc3f7; background: transparent; color: #4fc3f7; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s; }
+.btn:hover { background: #4fc3f7; color: #0a0e27; }
+.btn-primary { background: #4fc3f7; color: #0a0e27; }
+.btn-primary:hover { background: #29b6f6; }
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.card { background: #111638; border: 1px solid #2a3f6f; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+.card-title { font-size: 16px; font-weight: 600; color: #90a4ae; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
+.card-title span { color: #4fc3f7; }
+.form-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; align-items: end; }
+.form-group { display: flex; flex-direction: column; }
+.form-group label { font-size: 12px; color: #90a4ae; margin-bottom: 5px; }
+.form-group input, .form-group select { padding: 10px; background: #0a0e27; border: 1px solid #2a3f6f; border-radius: 6px; color: #fff; font-size: 14px; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #4fc3f7; }
+.status-bar { padding: 15px 20px; background: #111638; border: 1px solid #2a3f6f; border-radius: 10px; margin-bottom: 20px; font-size: 14px; color: #90a4ae; }
+.status-bar span { color: #4fc3f7; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #1a1f3a; padding: 12px 10px; text-align: left; font-size: 13px; color: #90a4ae; border-bottom: 2px solid #2a3f6f; }
+td { padding: 10px; border-bottom: 1px solid #1a1f3a; font-size: 13px; }
+tr:hover { background: #1a1f3a; }
+.status-aman { color: #4caf50; font-weight: 600; }
+.status-hati { color: #ff9800; font-weight: 600; }
+.filter-row { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
+.filter-row label { font-size: 13px; color: #90a4ae; }
+.msg { padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 13px; }
+.msg-error { background: #1a0a0a; color: #ef5350; border: 1px solid #ef5350; }
+.msg-success { background: #0a1a0a; color: #4caf50; border: 1px solid #4caf50; }
+.loading { text-align: center; padding: 40px; color: #90a4ae; }
+.footer-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #111638; border-top: 1px solid #2a3f6f; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+.footer-left { display: flex; gap: 10px; align-items: center; }
+.footer-right { display: flex; gap: 10px; }
+.badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.badge-on { background: #4caf50; color: #fff; }
+.badge-off { background: #424242; color: #fff; }
+@media (max-width: 768px) { .form-row { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>PIEZOMETER <span>BENDUNGAN CIAWI</span></h1>
+  <div class="btn-group">
+    <button class="btn" onclick="loadData()">SEGARKAN</button>
+    <button class="btn" onclick="downloadCSV()">UNDUH CSV</button>
+    <button class="btn" onclick="location.href='/'">DASHBOARD</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="card">
+    <div class="card-title">UPDATE TEKANAN HARIAN</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Tanggal</label>
+        <input type="date" id="inputTanggal">
+      </div>
+      <div class="form-group">
+        <label>Instrumen</label>
+        <select id="inputInstrumen"><option value="">- pilih -</option></select>
+      </div>
+      <div class="form-group">
+        <label>Tekanan (m)</label>
+        <input type="number" id="inputTekanan" step="0.01" min="0" max="200">
+      </div>
+      <div class="form-group">
+        <label>Kunci</label>
+        <input type="password" id="inputKunci">
+      </div>
+    </div>
+    <div style="margin-top:15px">
+      <button class="btn btn-primary" onclick="simpanData()">SIMPAN</button>
+    </div>
+    <div id="msgSimpan"></div>
+  </div>
+
+  <div class="status-bar">
+    LIVE STATUS - PEMBACAAN TERAKHIR: <span id="liveStatus">-</span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">TABEL KONDISI PIEZOMETER - <span id="modeLabel">TERKINI</span></div>
+    <div class="filter-row">
+      <label>Kondisi per tanggal:</label>
+      <input type="date" id="filterTanggal">
+      <select id="filterRiwayat"><option value="">- riwayat -</option></select>
+      <button class="btn btn-primary" onclick="terapkanFilter()">TERAPKAN</button>
+      <button class="btn" onclick="resetFilter()">TERKINI</button>
+    </div>
+    <div id="tableContainer">
+      <div class="loading">Memuat data...</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer-bar">
+  <div class="footer-left">
+    <span class="badge badge-on">Aktifkan</span>
+    <span class="badge badge-off">Notifikasi Nonaktif</span>
+    <span class="badge badge-off">Sirene ON</span>
+  </div>
+  <div class="footer-right">
+    <span style="font-size:12px;color:#90a4ae">SCADA Bendungan Ciawi</span>
+  </div>
+</div>
+
+<script>
+const API = '/api/piezometer';
+let allData = [];
+let daftarTanggal = [];
+
+function init() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('inputTanggal').value = today;
+  loadData();
+}
+
+async function loadData(tanggal) {
+  try {
+    let url = API;
+    if (tanggal) url += '?tanggal=' + tanggal;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    allData = json.data || [];
+    daftarTanggal = json.daftarTanggal || [];
+    document.getElementById('liveStatus').textContent = json.terakhir || '-';
+    renderTable();
+    renderInstrumenSelect();
+    renderRiwayatSelect();
+  } catch (e) {
+    document.getElementById('tableContainer').innerHTML = '<div class="msg msg-error">Gagal memuat: ' + e.message + '</div>';
+  }
+}
+
+function renderTable() {
+  if (!allData.length) {
+    document.getElementById('tableContainer').innerHTML = '<div class="loading">Tidak ada data</div>';
+    return;
+  }
+  let html = '<table><thead><tr><th>Sta</th><th>Nama</th><th>Tip</th><th>Top</th><th>Press</th><th>Elev. Air</th><th>Izin</th><th>Ru</th><th>Status</th></tr></thead><tbody>';
+  allData.forEach(function(d) {
+    const elevAir = (d.tip + d.press).toFixed(2);
+    const statusClass = d.status === 'AMAN' ? 'status-aman' : 'status-hati';
+    html += '<tr><td>' + d.sta + '</td><td>' + d.name + '</td><td>' + d.tip.toFixed(2) + '</td><td>' + d.top.toFixed(2) + '</td><td>' + Number(d.press).toFixed(2) + '</td><td>' + elevAir + '</td><td>' + d.izin.toFixed(2) + '</td><td>' + d.ru.toFixed(4) + '</td><td class="' + statusClass + '">' + d.status + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('tableContainer').innerHTML = html;
+}
+
+function renderInstrumenSelect() {
+  const sel = document.getElementById('inputInstrumen');
+  sel.innerHTML = '<option value="">- pilih -</option>';
+  allData.forEach(function(d) {
+    sel.innerHTML += '<option value="' + d.name + '">' + d.name + ' (STA ' + d.sta + ')</option>';
+  });
+}
+
+function renderRiwayatSelect() {
+  const sel = document.getElementById('filterRiwayat');
+  sel.innerHTML = '<option value="">- riwayat -</option>';
+  daftarTanggal.forEach(function(t) {
+    sel.innerHTML += '<option value="' + t + '">' + t + '</option>';
+  });
+}
+
+function terapkanFilter() {
+  const t = document.getElementById('filterTanggal').value;
+  const r = document.getElementById('filterRiwayat').value;
+  const pakai = t || r;
+  document.getElementById('modeLabel').textContent = pakai ? pakai : 'TERKINI';
+  loadData(pakai);
+}
+
+function resetFilter() {
+  document.getElementById('filterTanggal').value = '';
+  document.getElementById('filterRiwayat').value = '';
+  document.getElementById('modeLabel').textContent = 'TERKINI';
+  loadData();
+}
+
+async function simpanData() {
+  const name = document.getElementById('inputInstrumen').value;
+  const press = document.getElementById('inputTekanan').value;
+  const date = document.getElementById('inputTanggal').value;
+  const key = document.getElementById('inputKunci').value;
+  const msg = document.getElementById('msgSimpan');
+  if (!name || !press || !key) { msg.innerHTML = '<div class="msg msg-error">Lengkapi semua field</div>'; return; }
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, press: parseFloat(press), date: date, key: key })
+    });
+    const json = await res.json();
+    if (res.ok) {
+      msg.innerHTML = '<div class="msg msg-success">✅ Tersimpan: ' + json.name + ' = ' + json.press + ' m (' + json.status + ')</div>';
+      loadData();
+    } else {
+      msg.innerHTML = '<div class="msg msg-error">❌ ' + (json.error || 'Gagal') + '</div>';
+    }
+  } catch (e) {
+    msg.innerHTML = '<div class="msg msg-error">Error: ' + e.message + '</div>';
+  }
+}
+
+function downloadCSV() {
+  window.location.href = API + '?format=csv';
+}
+
+init();
+</script>
+</body>
+</html>

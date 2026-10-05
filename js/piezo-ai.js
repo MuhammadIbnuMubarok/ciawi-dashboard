@@ -1,54 +1,6 @@
 (function(){
   var DATA=null, BRIEF="";
   var PAL=["#22d3ee","#f59e0b","#a78bfa","#34d399","#f472b6","#60a5fa","#fbbf24","#4ade80","#e879f9","#38bdf8","#fb7185","#84cc16","#c084fc","#f97316","#2dd4bf","#818cf8","#facc15","#4d7c0f","#be185d","#0ea5e9","#65a30d","#d946ef","#dc2626","#16a34a","#7c3aed"];
-  function jsonFromUrl(url){
-    return new Promise(function(resolve,reject){
-      var done = false;
-      function finish(fn){ return function(v){ if(done) return; done=true; fn(v); }; }
-      if (typeof XMLHttpRequest !== "undefined") {
-        var xhr = new XMLHttpRequest();
-        xhr.open("GET", url, true);
-        xhr.onreadystatechange = function(){
-          if (xhr.readyState !== 4) return;
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try { resolve(JSON.parse(xhr.responseText)); } catch (e) { reject(e); }
-          } else {
-            reject(new Error("HTTP " + xhr.status));
-          }
-        };
-        xhr.onerror = finish(reject);
-        xhr.send();
-        return;
-      }
-      if (typeof fetch === "function") {
-        fetch(url, { cache: "no-store" }).then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(finish(resolve), finish(reject));
-        return;
-      }
-      reject(new Error("Tidak ada mekanisme load data"));
-    });
-  }
-  function loadArchive(){
-    var urls = [];
-    var base = window.location.href;
-    try {
-      var root = new URL("./data/piezo-arsip.json?v=1", base).href;
-      urls.push(root);
-    } catch (e) {}
-    urls.push("data/piezo-arsip.json?v=1");
-    urls.push("./data/piezo-arsip.json?v=1");
-    urls.push("/data/piezo-arsip.json?v=1");
-    return new Promise(function(resolve,reject){
-      var i = 0;
-      function tryNext(){
-        if (i >= urls.length) { reject(new Error("Tidak dapat memuat arsip piezometer")); return; }
-        var url = urls[i++];
-        jsonFromUrl(url).then(resolve, function(err){
-          if (i < urls.length) tryNext(); else reject(err);
-        });
-      }
-      tryNext();
-    });
-  }
   function build(){
     if(!DATA) return "";
     var L=["PIEZOMETER & CURAH HUJAN ARSIP (sumber MONITORING V W Pizometer, "+DATA.meta.sheets.length+" sheet: "+DATA.meta.sheets.join(", ")+"):"];
@@ -112,16 +64,7 @@
   function jawabLokal(q){ if(!DATA) return "MODE CADANGAN: arsip belum dimuat - segarkan halaman."; var s=(q||"").toLowerCase(); var L=["MODE CADANGAN (tanpa LLM) - dihitung langsung dari arsip ter-audit (9 sheet, "+Object.keys(DATA.seri).length+" seri, "+(DATA.hujan||[]).length+" hari hujan):"]; var h=DATA.hujan||[]; if(/hujan|curah/.test(s) && h.length){ var mx=h[0], tot=0; h.forEach(function(x){ tot+=x.mm; if(x.mm>mx.mm) mx=x; }); var top=h.slice().sort(function(a,b){ return b.mm-a.mm; }).slice(0,5); L.push("Curah hujan: "+h.length+" hari ("+h[0].tanggal+" s/d "+h[h.length-1].tanggal+"), total "+tot.toFixed(1)+" mm."); L.push("Harian maksimum: "+mx.mm+" mm pada "+mx.tanggal+"."); L.push("5 hari terbasah: "+top.map(function(x){ return x.tanggal+" ("+x.mm+" mm)"; }).join(", ")+"."); } var codes=Object.keys(DATA.seri); var sebut=(s.match(/(ppu|ppd|ppa|ptu|pta|ptd|osp)\s?\d+/g)||[])[0]; if(sebut){ var cs=sebut.replace(/\s/g,"").toUpperCase(), key=null; codes.forEach(function(k){ if(!key && k.split("@")[0]===cs) key=k; }); if(key){ var ser=DATA.seri[key], last=ser[ser.length-1], first=ser[0]; var mn=1e18, mxx=-1e18; ser.forEach(function(pp){ if(pp[1]<mn)mn=pp[1]; if(pp[1]>mxx)mxx=pp[1]; }); var old=ser[Math.max(0,ser.length-91)][1]; L.push(cs+" ("+key+"): n="+ser.length+" bacaan "+first[0]+" s/d "+last[0]+"; terakhir "+last[1]+" m; min "+mn.toFixed(2)+" m; maks "+mxx.toFixed(2)+" m; delta 90 hari "+(last[1]-old).toFixed(2)+" m."); } else L.push("Kode "+cs+" tidak ditemukan di arsip."); } if(/tren|naik|turun|cepat|perubahan/.test(s)){ var mv=codes.map(function(k){ var ser=DATA.seri[k]; var old=ser[Math.max(0,ser.length-91)][1]; return { k:k, d:ser[ser.length-1][1]-old }; }).sort(function(a,b){ return b.d-a.d; }); L.push("Kenaikan tercepat 90 hari: "+mv.slice(0,3).map(function(x){ return x.k+" (+"+x.d.toFixed(2)+" m)"; }).join(", ")+"."); L.push("Perubahan terendah 90 hari: "+mv.slice(-2).map(function(x){ return x.k+" ("+x.d.toFixed(2)+" m)"; }).join(", ")+"."); } if(/korelasi|hubungan|pengaruh/.test(s)){ var hm={}; h.forEach(function(x){ hm[x.tanggal]=x.mm; }); var ups=0,n=0,base=0,nb=0; codes.slice(0,8).forEach(function(k){ var ser=DATA.seri[k]; for(var i=1;i<ser.length-3;i++){ var d0=ser[i-1][1], d3=ser[i+3][1]; var rain=(hm[ser[i][0]]||0)+(hm[ser[i-1][0]]||0); if(rain>=20){ ups+=d3-d0; n++; } else if(rain===0){ base+=d3-d0; nb++; } } }); if(n&&nb) L.push("Korelasi kasar: rata-rata perubahan elevasi tekanan 3 hari selepas hujan >=20 mm = "+(ups/n).toFixed(2)+" m ("+n+" kejadian); pada hari kering = "+(base/nb).toFixed(2)+" m ("+nb+" kejadian)."); } if(L.length<=1){ var tot2=0, mnD="9999-99-99", mxD="0000-00-00"; codes.forEach(function(k){ var ser=DATA.seri[k]; tot2+=ser.length; if(ser[0][0]<mnD)mnD=ser[0][0]; if(ser[ser.length-1][0]>mxD)mxD=ser[ser.length-1][0]; }); L.push("Ringkasan arsip: "+codes.length+" seri ("+tot2+" titik) lintas STA 0+310 & 0+377.5; rentang "+mnD+" s/d "+mxD+"; hujan "+h.length+" hari total "+h.reduce(function(a,x){ return a+x.mm; },0).toFixed(1)+" mm; acuan puncak 551.367 m."); L.push("Tanya spesifik: hujan maksimum, tren instrumen (sebut kode mis. PTA2), atau korelasi hujan-tekanan."); } return L.join("\n"); }
 function cadangan(q){ return new Response(JSON.stringify({ ok:true, reply: jawabLokal(q), mode:"cadangan" }), { status:200, headers:{ "Content-Type":"application/json" } }); }
 function siap(){
-    loadArchive().then(function(j){ DATA=j; BRIEF=build(); render(); tombolArsip(); if (!window._arsipBtnTimer) { window._arsipBtnTimer = setInterval(tombolArsip, 4000); } var orig=window.fetch; window.fetch=function(u,o){ try{ if(typeof u==="string"&&u.indexOf("/api/ai")>=0&&o&&o.body){ var b=JSON.parse(o.body); b.brief=(b.brief||"")+"\n"+BRIEF; o=Object.assign({},o,{body:JSON.stringify(b)}); } }catch(e){} return orig.call(window,u,o).then(function(resp){ if(!(typeof u==="string"&&u.indexOf("/api/ai")>=0)) return resp; var q=""; try{ q=((JSON.parse((o&&o.body)||"{}").messages)||[]).slice(-1)[0].text||""; }catch(e){} if(resp&&resp.ok){ return resp.json().then(function(j){ if(j&&j.ok) return new Response(JSON.stringify(j),{status:200,headers:{"Content-Type":"application/json"}}); return cadangan(q); }).catch(function(){ return cadangan(q); }); } return cadangan(q); }).catch(function(){ var q2=""; try{ q2=((JSON.parse((o&&o.body)||"{}").messages)||[]).slice(-1)[0].text||""; }catch(e){} return cadangan(q2); }); }; }).catch(function(){
-      var fallback = document.getElementById("piezo-arsip-card");
-      if (!fallback) {
-        var note = document.createElement("div");
-        note.id = "piezo-arsip-card";
-        note.style.cssText = "width:min(1100px,96vw);margin:18px auto 90px auto;background:#0b132b;border:1px solid #1c2a4b;border-radius:12px;padding:12px;color:#fbbf24;";
-        note.textContent = "ARsip piezometer tidak bisa dimuat otomatis. Cek file data/piezo-arsip.json agar tersedia di folder project.";
-        document.body.appendChild(note);
-      }
-    });
+    fetch("data/piezo-arsip.json?v=1").then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){ DATA=j; BRIEF=build(); render(); tombolArsip(); if (!window._arsipBtnTimer) { window._arsipBtnTimer = setInterval(tombolArsip, 4000); } var orig=window.fetch; window.fetch=function(u,o){ try{ if(typeof u==="string"&&u.indexOf("/api/ai")>=0&&o&&o.body){ var b=JSON.parse(o.body); b.brief=(b.brief||"")+"\n"+BRIEF; o=Object.assign({},o,{body:JSON.stringify(b)}); } }catch(e){} return orig.call(window,u,o).then(function(resp){ if(!(typeof u==="string"&&u.indexOf("/api/ai")>=0)) return resp; var q=""; try{ q=((JSON.parse((o&&o.body)||"{}").messages)||[]).slice(-1)[0].text||""; }catch(e){} if(resp&&resp.ok){ return resp.json().then(function(j){ if(j&&j.ok) return new Response(JSON.stringify(j),{status:200,headers:{"Content-Type":"application/json"}}); return cadangan(q); }).catch(function(){ return cadangan(q); }); } return cadangan(q); }).catch(function(){ var q2=""; try{ q2=((JSON.parse((o&&o.body)||"{}").messages)||[]).slice(-1)[0].text||""; }catch(e){} return cadangan(q2); }); }; }).catch(function(){});
   }
   if (document.readyState==="loading") document.addEventListener("DOMContentLoaded", siap); else siap();
 })();
