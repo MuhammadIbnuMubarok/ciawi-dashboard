@@ -1,0 +1,13 @@
+name = "ciawi-record-cron"
+main = "src/index.js"
+compatibility_date = "2026-10-05"
+
+# Rekam TMA tiap jam pada menit ke-5. Ubah di sini bila perlu, contoh
+# setiap 15 menit: "*/15 * * * *"
+[triggers]
+crons = ["5 * * * *"]
+
+# Namespace KV yang sama dengan Pages (history/<tanggal>.jsonl)
+[[kv_namespaces]]
+binding = "BLOB"
+id = "ebc1c7c51e7d4b22a6c9210c28057cb9"

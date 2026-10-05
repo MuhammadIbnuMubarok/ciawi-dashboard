@@ -9,8 +9,13 @@ pages_build_output_dir = "."
 binding = "BLOB"
 id = "ebc1c7c51e7d4b22a6c9210c28057cb9"
 
+# CATATAN: Cloudflare PAGES tidak mendukung [triggers]/Cron (hanya Workers).
+# Rekam TMA otomatis dijalankan oleh Worker terpisah: worker/record-cron.js
+# (deploy dengan: wrangler deploy -c worker/record-cron/wrangler.toml).
+
 # Rahasia (isi lewat Dashboard Cloudflare > Settings > Environment Variables,
 # jangan ditaruh di file ini):
 #   TELEGRAM_BOT_TOKEN
 #   TELEGRAM_CHAT_ID
 #   CCTV_UPLOAD_KEY
+#   AI_PROVIDER / GROQ_API_KEY / AI_MODEL
