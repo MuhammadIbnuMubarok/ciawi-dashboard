@@ -1,7 +1,7 @@
-﻿// api/update.js - snapshot update terjadwal: publish=1&time=HH:MM menyimpan snapshot mentah; GET membaca snapshot hari ini
-const { put, get, list } = require("@vercel/blob");
+// api/update.js - snapshot update terjadwal: publish=1&time=HH:MM menyimpan snapshot mentah; GET membaca snapshot hari ini
+import {put, get, list} from "@vercel/blob";
 async function fetchFleet(){ const r = await fetch(process.env.FLEET_URL, { cache: "no-store" }); if (!r.ok) throw new Error("fleet HTTP " + r.status); return r.json(); }
-module.exports = async (req, res) => {
+export default async (req, res) => {
   try {
     const q = req.query || {};
     const now = new Date();

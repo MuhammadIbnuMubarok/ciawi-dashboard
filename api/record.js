@@ -1,11 +1,11 @@
-﻿// api/record.js - perekam server: dipanggil Vercel Cron tiap jam, idempoten per menit
-const { put, get, list } = require("@vercel/blob");
+// api/record.js - perekam server: dipanggil Vercel Cron tiap jam, idempoten per menit
+import {put, get, list} from "@vercel/blob";
 async function fetchFleet(){
   const r = await fetch(process.env.FLEET_URL, { cache: "no-store" });
   if (!r.ok) throw new Error("fleet HTTP " + r.status);
   return r.json();
 }
-module.exports = async (req, res) => {
+export default async (req, res) => {
   try {
     const j = await fetchFleet();
     const arr = (j && j.telemetryjakarta) || [];
@@ -33,11 +33,4 @@ module.exports = async (req, res) => {
     res.json({ ok: true, lines: body.trim().split("\n").length, ts: ts });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
-
-
-
-
-
-
-
 

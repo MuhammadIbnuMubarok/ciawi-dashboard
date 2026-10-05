@@ -1,6 +1,6 @@
 // api/snap.js - jepret real-time empat mata (Ciawi inlet/outlet + Sukamahi inlet/outlet) langsung dari SINBAD
-const crypto = require("crypto");
-const { put } = require("@vercel/blob");
+import crypto from "crypto";
+import {put} from "@vercel/blob";
 async function login() {
   const base = "https://sinbad.sda.pu.go.id";
   const cookies = {};
@@ -12,7 +12,7 @@ async function login() {
   r = await fetch(base + "/dologin2.php", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "Mozilla/5.0", "Cookie": chead() }, body: body.toString() }); setc(r); await r.text();
   return { base: base, chead: chead };
 }
-module.exports = async (req, res) => {
+export default async (req, res) => {
   try {
     const q = req.query || {};
     if (!process.env.CCTV_UPLOAD_KEY || q.key !== process.env.CCTV_UPLOAD_KEY) { res.status(403).json({ error: "kunci salah" }); return; }

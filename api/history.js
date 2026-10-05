@@ -1,6 +1,6 @@
-﻿// api/history.js - pustakawan riwayat: GET /api/history?from=YYYY-MM-DD&to=YYYY-MM-DD
-const { list, get } = require("@vercel/blob");
-module.exports = async (req, res) => {
+// api/history.js - pustakawan riwayat: GET /api/history?from=YYYY-MM-DD&to=YYYY-MM-DD
+import {list, get} from "@vercel/blob";
+export default async (req, res) => {
   try {
     const from = String(req.query.from || "");
     const to = String(req.query.to || from);
@@ -21,10 +21,4 @@ module.exports = async (req, res) => {
     res.json({ count: out.length, rows: out });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
-
-
-
-
-
-
 

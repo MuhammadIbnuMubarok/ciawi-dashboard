@@ -1,6 +1,7 @@
-﻿// api/telegram.js - REAL-TIME: foto ber-keterangan berurutan (inlet Ciawi -> outlet Ciawi -> Sukamahi), tanpa baris kamera
-const { list, get } = require("@vercel/blob");
-module.exports.maxDuration = 60;
+export const config = { maxDuration: 60 };
+// api/telegram.js - REAL-TIME: foto ber-keterangan berurutan (inlet Ciawi -> outlet Ciawi -> Sukamahi), tanpa baris kamera
+import {list, get} from "@vercel/blob";
+
 function fmt2(x){ return (Math.round(x * 100) / 100).toFixed(2); }
 async function fotoCam(cam) {
   try {
@@ -12,7 +13,7 @@ async function fotoCam(cam) {
     return b.length > 5000 ? b : null;
   } catch (e) { return null; }
 }
-module.exports = async (req, res) => {
+export default async (req, res) => {
   try {
     const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     const q = req.query || {};

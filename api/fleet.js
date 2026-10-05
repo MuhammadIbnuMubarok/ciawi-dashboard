@@ -1,5 +1,5 @@
-﻿// api/fleet.js - kredensial hanya di env Vercel (FLEET_URL)
-module.exports = async (req, res) => {
+// api/fleet.js - kredensial hanya di env Vercel (FLEET_URL)
+export default async (req, res) => {
   const url = process.env.FLEET_URL;
   if (!url) { res.status(500).json({ error: "FLEET_URL belum diset di Vercel" }); return; }
   try {

@@ -1,6 +1,6 @@
-﻿// api/cctv.js - pintu unggah snapshot CCTV (kunci wajib); parameter cam = inlet|outlet; GET = daftar snapshot
-const { put, list } = require("@vercel/blob");
-module.exports = async (req, res) => {
+// api/cctv.js - pintu unggah snapshot CCTV (kunci wajib); parameter cam = inlet|outlet; GET = daftar snapshot
+import {put, list} from "@vercel/blob";
+export default async (req, res) => {
   try {
     const q = req.query || {};
     if (!process.env.CCTV_UPLOAD_KEY || q.key !== process.env.CCTV_UPLOAD_KEY) { res.status(403).json({ error: "kunci salah" }); return; }
