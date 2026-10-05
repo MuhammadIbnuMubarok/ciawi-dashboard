@@ -1,136 +1,259 @@
-﻿// api/piezometer.js v5 - LENGKAP + FULL DATA + SEMUA FITUR
-export default async function handler(req, res) {
-  const MASTER_PIEZO = [
-    { sta: "310", name: "PPU1", tip: 475.00, top: 551.37, gamma: 1.757, press: 24.79, izin: 542.09 },
-    { sta: "310", name: "PPD2", tip: 475.00, top: 551.37, gamma: 1.757, press: 28.35, izin: 542.09 },
-    { sta: "310", name: "PPU3", tip: 485.00, top: 551.37, gamma: 1.757, press: 23.05, izin: 543.30 },
-    { sta: "310", name: "PPD4", tip: 485.00, top: 551.37, gamma: 1.757, press: 23.04, izin: 544.88 },
-    { sta: "310", name: "PTU1", tip: 498.00, top: 551.37, gamma: 1.757, press: 16.23, izin: 544.88 },
-    { sta: "310", name: "PTA2", tip: 498.00, top: 551.37, gamma: 1.757, press: 17.21, izin: 544.88 },
-    { sta: "310", name: "PTD3", tip: 498.00, top: 551.37, gamma: 1.757, press: 15.61, izin: 544.88 },
-    { sta: "310", name: "PTD4", tip: 500.00, top: 551.37, gamma: 1.757, press: 13.28, izin: 545.72 },
-    { sta: "310", name: "PTU5", tip: 510.00, top: 551.37, gamma: 1.757, press: 14.29, izin: 546.34 },
-    { sta: "310", name: "PTA6", tip: 510.00, top: 551.37, gamma: 1.757, press: 18.60, izin: 546.34 },
-    { sta: "310", name: "PTD7", tip: 510.00, top: 551.37, gamma: 1.757, press: 15.95, izin: 546.82 },
-    { sta: "310", name: "PTU8", tip: 520.00, top: 551.37, gamma: 1.757, press: 7.13, izin: 547.92 },
-    { sta: "310", name: "PTD9", tip: 520.00, top: 551.37, gamma: 1.757, press: 2.90, izin: 547.56 },
-    { sta: "310", name: "PTU10", tip: 520.00, top: 536.00, gamma: 1.757, press: 2.07, izin: 534.24 },
-    { sta: "310", name: "PTU11", tip: 520.00, top: 536.00, gamma: 1.757, press: 1.03, izin: 534.24 },
-    { sta: "310", name: "PTU12", tip: 510.00, top: 536.00, gamma: 1.757, press: 8.05, izin: 533.14 },
-    { sta: "310", name: "PTU13", tip: 510.00, top: 536.00, gamma: 1.757, press: 8.28, izin: 533.63 },
-    { sta: "310", name: "PTD21", tip: 510.00, top: 542.50, gamma: 1.757, press: 12.77, izin: 538.93 },
-    { sta: "310", name: "PTD22", tip: 510.00, top: 542.50, gamma: 1.757, press: 13.37, izin: 538.93 },
-    { sta: "377.5", name: "PPU5", tip: 475.00, top: 551.03, gamma: 1.757, press: 31.16, izin: 541.79 },
-    { sta: "377.5", name: "PPA6", tip: 475.00, top: 551.03, gamma: 1.757, press: 31.48, izin: 541.79 },
-    { sta: "377.5", name: "PPU7", tip: 485.00, top: 551.03, gamma: 1.757, press: 20.84, izin: 543.01 },
-    { sta: "377.5", name: "PPD8", tip: 485.00, top: 551.03, gamma: 1.757, press: 18.13, izin: 543.01 },
-    { sta: "377.5", name: "PTU16", tip: 510.00, top: 551.03, gamma: 1.757, press: 12.07, izin: 546.05 },
-    { sta: "377.5", name: "PTA17", tip: 510.00, top: 551.03, gamma: 1.757, press: 12.89, izin: 546.05 },
-    { sta: "377.5", name: "PTD18", tip: 510.00, top: 551.03, gamma: 1.757, press: 10.69, izin: 546.05 },
-    { sta: "377.5", name: "PTU19", tip: 520.00, top: 551.03, gamma: 1.757, press: 10.00, izin: 546.05 },
-    { sta: "377.5", name: "PTD20", tip: 520.00, top: 551.03, gamma: 1.757, press: 6.33, izin: 547.26 },
-    { sta: "377.5", name: "PTU14", tip: 520.00, top: 535.50, gamma: 1.757, press: 1.34, izin: 534.09 },
-    { sta: "377.5", name: "PTU15", tip: 520.00, top: 535.50, gamma: 1.757, press: 1.88, izin: 534.09 },
-    { sta: "377.5", name: "OSP", tip: 499.50, top: 540.90, gamma: 1.757, press: 17.30, izin: 535.93 }
-  ];
+﻿// api/piezometer.js — v6: baca data piezo-*.json dari repo (histori penuh)
+//
+// DIPERBAIKI 2026-10-05. Versi v5 hanya mengembalikan satu snapshot `press`
+// per instrumen dengan `daftarTanggal: []`, sehingga grafik tidak punya apa pun
+// untuk diplot. Versi ini membaca file data yang sudah ada di repo:
+//
+//   data/piezo-master.json    -> 31 instrumen (sta, tip, gamma, izin, a/b/r0/c)
+//   data/piezo-history.json   -> {INSTRUMEN: {"YYYY-MM-DD": tekanan pori}}
+//   data/piezo-arsip.json     -> {meta, hujan, seri} (elevasi timbunan)
+//   data/piezo-excluded.json  -> {jumlah, baris} (baris dibuang validator)
+//
+// Bentuk respons dipertahankan kompatibel dengan frontend yang sudah ada:
+//   { terakhir, sesuai, daftarTanggal, data, ... }
+//
+// Status: pakai `ket` dari sumber bila ada; bila tidak, ambang resmi modul
+// (tip + press) < izin. Ru = press / ((top - tip) * gamma).
 
-  function hitung(r, press) {
-    const ru = press / ((r.top - r.tip) * r.gamma);
-    const status = (r.tip + press) < r.izin ? "AMAN" : "HATI-HATI";
-    return { ru: parseFloat(ru.toFixed(4)), status: status };
-  }
+import fs from "node:fs";
+import path from "node:path";
 
-  function hariIni() {
-    return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-  }
+const DATA = path.join(process.cwd(), "data");
 
+function baca(nama) {
   try {
-    const q = req.query || {};
-    
-    // CSV Export
-    if (q.format === "csv") {
-      const lines = ["tanggal;sta;nama;tip;top;gamma;press;izin;ru;status"];
-      const out = MASTER_PIEZO.map(function (r) {
-        const h = hitung(r, r.press);
-        return {
-          sta: r.sta, name: r.name, tip: r.tip, top: r.top, 
-          gamma: r.gamma, press: r.press, izin: r.izin, 
-          tanggal: "", ru: h.ru, status: h.status
-        };
-      });
-      out.forEach(function(d) {
-        lines.push([d.tanggal, d.sta, d.name, d.tip.toFixed(2), d.top.toFixed(2), 
-          d.gamma, Number(d.press).toFixed(2), d.izin.toFixed(2), 
-          d.ru.toFixed(4), d.status].join(";"));
-      });
-      res.setHeader("Content-Type", "text/csv; charset=utf-8");
-      res.setHeader("Content-Disposition", 'attachment; filename="piezometer-ciawi.csv"');
-      res.status(200).send(lines.join("\n"));
-      return;
-    }
+    const p = path.join(DATA, nama);
+    if (!fs.existsSync(p)) return null;
+    return JSON.parse(fs.readFileSync(p, "utf8").replace(/^\uFEFF/, ""));
+  } catch {
+    return null;
+  }
+}
 
-    // POST - Save Data
-    if (req.method === "POST") {
-      let body = {};
-      try {
-        if (typeof req.body === "object" && req.body !== null) body = req.body;
-        else if (typeof req.body === "string" && req.body) body = JSON.parse(req.body);
-        else {
-          const chunks = [];
-          for await (const c of req) chunks.push(c);
-          const raw = Buffer.concat(chunks).toString("utf8");
-          if (raw) body = JSON.parse(raw);
-        }
-      } catch (e) { body = {}; }
+function hariIni() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+}
 
-      const key = String(body.key || q.key || "");
-      if (body.name === undefined && q.name !== undefined) body.name = q.name;
-      if (body.press === undefined && q.press !== undefined) body.press = q.press;
-      if (body.date === undefined && q.date !== undefined) body.date = q.date;
+function hitung(r, press) {
+  const pressNum = Number(press);
+  const tinggi = (Number(r.top) - Number(r.tip)) * Number(r.gamma);
+  const ru = tinggi > 0 ? pressNum / tinggi : null;
+  const aman = Number(r.tip) + pressNum < Number(r.izin);
+  return {
+    ru: ru === null ? null : parseFloat(ru.toFixed(4)),
+    status: aman ? "AMAN" : "HATI-HATI",
+  };
+}
 
-      if (!process.env.CCTV_UPLOAD_KEY || key !== process.env.CCTV_UPLOAD_KEY) {
-        res.status(403).json({ error: "kunci salah" });
-        return;
-      }
+export default async function handler(req, res) {
+  const q = req.query || {};
 
-      const row = MASTER_PIEZO.find(function (r) { return r.name === String(body.name); });
-      const press = Number(body.press);
+  const master = baca("piezo-master.json");
+  const history = baca("piezo-history.json");
+  const arsip = baca("piezo-arsip.json");
+  const excluded = baca("piezo-excluded.json");
 
-      if (!row) { res.status(404).json({ error: "nama instrumen tidak dikenal" }); return; }
-      if (!isFinite(press) || press < 0 || press > 200) { res.status(400).json({ error: "press tidak valid" }); return; }
-
-      const date = String(body.date || hariIni());
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { res.status(400).json({ error: "tanggal harus YYYY-MM-DD" }); return; }
-
-      const h = hitung(row, press);
-      res.json({ ok: true, name: row.name, date: date, press: press, ru: h.ru, status: h.status });
-      return;
-    }
-
-    // GET - Return Full Data
-    const out = MASTER_PIEZO.map(function (r) {
-      const h = hitung(r, r.press);
-      return {
-        sta: r.sta,
-        name: r.name,
-        tip: r.tip,
-        top: r.top,
-        gamma: r.gamma,
-        press: r.press,
-        izin: r.izin,
-        tanggal: "",
-        ru: h.ru,
-        status: h.status
-      };
+  if (!master || !Array.isArray(master.alat)) {
+    res.status(500).json({
+      error: "data/piezo-master.json tidak terbaca",
+      hint: "pastikan file ikut ter-deploy (vercel.json -> functions includeFiles)",
     });
+    return;
+  }
+
+  const alat = master.alat;
+  const H = history && typeof history === "object" ? history : {};
+  const seriTimb = arsip && arsip.seri ? arsip.seri : {};
+
+  // ---------- CSV export: histori panjang per instrumen ----------
+  if (q.format === "csv") {
+    const lines = ["tanggal;sta;nama;tip;top;gamma;press;izin;ru;status;elevasi"];
+    for (const r of alat) {
+      const seri = H[r.name] || {};
+      const elv = seriTimb[r.name];
+      const elvVal = elv && elv.length ? elv[elv.length - 1][1] : "";
+      for (const tgl of Object.keys(seri).sort()) {
+        const h = hitung(r, seri[tgl]);
+        lines.push(
+          [
+            tgl,
+            r.sta,
+            r.name,
+            Number(r.tip).toFixed(2),
+            Number(r.top).toFixed(2),
+            r.gamma,
+            Number(seri[tgl]).toFixed(3),
+            Number(r.izin).toFixed(2),
+            h.ru === null ? "" : h.ru.toFixed(4),
+            h.status,
+            elvVal,
+          ].join(";"),
+        );
+      }
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="piezometer-ciawi.csv"',
+    );
+    res.status(200).send(lines.join("\n"));
+    return;
+  }
+
+  // ---------- POST: validasi satu pembacaan ----------
+  if (req.method === "POST") {
+    let body = {};
+    try {
+      if (typeof req.body === "object" && req.body !== null) body = req.body;
+      else if (typeof req.body === "string" && req.body) body = JSON.parse(req.body);
+      else {
+        const chunks = [];
+        for await (const c of req) chunks.push(c);
+        const raw = Buffer.concat(chunks).toString("utf8");
+        if (raw) body = JSON.parse(raw);
+      }
+    } catch {
+      body = {};
+    }
+
+    const key = String(body.key || q.key || "");
+    const name = String(body.name || q.name || "");
+    const press = Number(body.press ?? q.press);
+    const date = String(body.date || q.date || hariIni());
+
+    if (!process.env.CCTV_UPLOAD_KEY || key !== process.env.CCTV_UPLOAD_KEY) {
+      res.status(403).json({ error: "kunci salah" });
+      return;
+    }
+    const row = alat.find((r) => r.name === name);
+    if (!row) {
+      res.status(404).json({ error: "nama instrumen tidak dikenal" });
+      return;
+    }
+    if (!isFinite(press) || press < 0 || press > 200) {
+      res.status(400).json({ error: "press tidak valid" });
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      res.status(400).json({ error: "tanggal harus YYYY-MM-DD" });
+      return;
+    }
+
+    const h = hitung(row, press);
+    res.json({
+      ok: true,
+      name,
+      date,
+      press,
+      ru: h.ru,
+      status: h.status,
+      catatan:
+        "Vercel serverless tidak menyimpan; masukkan lewat modul offline.",
+    });
+    return;
+  }
+
+  // ---------- GET: satu seri untuk grafik ----------
+  // Parameter dari pz-panel.js: ?seri=1&sta=<sta>&dari=<YYYY-MM-DD>
+  // Mengembalikan { nama, sta, seri: [[tanggal, nilai], ...], ... } untuk
+  // instruments yang benar-benar punya histori, sehingga grafik punya titik.
+  if (q.seri !== undefined) {
+    const sta = String(q.sta ?? "");
+    const dari = String(q.dari ?? "");
+    let idx = alat.findIndex((r) => r.sta === sta && H[r.name]);
+    if (idx < 0) idx = alat.findIndex((r) => H[r.name]);
+    if (idx < 0) {
+      res.status(404).json({ error: "tidak ada instrumen dengan histori" });
+      return;
+    }
+
+    const r = alat[idx];
+    const seri = H[r.name] || {};
+    let tgl = Object.keys(seri).sort();
+    if (dari && /^\d{4}-\d{2}-\d{2}$/.test(dari)) {
+      tgl = tgl.filter((t) => t >= dari);
+    }
+    const pts = tgl.map((t) => [t, seri[t]]);
+    const akhir = pts.length ? pts[pts.length - 1] : null;
+    const h = hitung(r, akhir ? akhir[1] : r.press);
 
     res.status(200).json({
-      terakhir: hariIni(),
-      sesuai: "",
-      daftarTanggal: [],
-      data: out
+      nama: r.name,
+      sta: r.sta,
+      dari: tgl.length ? tgl[0] : null,
+      sampai: akhir ? akhir[0] : null,
+      titik: pts.length,
+      seri: pts,
+      tip: r.tip,
+      top: r.top,
+      gamma: r.gamma,
+      izin: r.izin,
+      press: akhir ? akhir[1] : r.press,
+      ru: h.ru,
+      status: h.status,
+      topSerie: Array.isArray(r.topSerie) ? r.topSerie : null,
     });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+    return;
   }
+
+  // ---------- GET: data lengkap ----------
+  const semuaTanggal = new Set();
+  let totalPembacaan = 0;
+  for (const s of Object.values(H)) {
+    if (!s || typeof s !== "object") continue;
+    for (const t of Object.keys(s)) {
+      semuaTanggal.add(t);
+      totalPembacaan++;
+    }
+  }
+  const daftarTanggal = [...semuaTanggal].sort();
+
+  const data = alat.map((r) => {
+    const seri = H[r.name] || {};
+    const tgl = Object.keys(seri).sort();
+    const terakhir = tgl.length ? tgl[tgl.length - 1] : null;
+    const press = terakhir ? seri[terakhir] : r.press;
+    const h = hitung(r, press);
+    const timb = seriTimb[r.name];
+
+    return {
+      sta: r.sta,
+      name: r.name,
+      tip: r.tip,
+      top: r.top,
+      gamma: r.gamma,
+      izin: r.izin,
+      press,
+      tanggal: terakhir || "",
+      ru: h.ru,
+      status: h.status,
+      ket: r.ket || null,
+      jumlah: tgl.length,
+      tanggalAwal: tgl.length ? tgl[0] : null,
+      tanggalAkhir: terakhir,
+      elevation: timb && timb.length ? timb[timb.length - 1][1] : null,
+      seri: tgl.map((t) => [t, seri[t]]),
+      topSerie: Array.isArray(r.topSerie) ? r.topSerie : null,
+    };
+  });
+
+  res.status(200).json({
+    terakhir: hariIni(),
+    sesuai: master.generated || null,
+    daftarTanggal,
+    data,
+    meta: {
+      instrumen: alat.length,
+      denganHistori: Object.keys(H).length,
+      totalPembacaan,
+      rentang: daftarTanggal.length
+        ? [daftarTanggal[0], daftarTanggal[daftarTanggal.length - 1]]
+        : null,
+      sumber: master.sumber || null,
+    },
+    hujan: arsip && Array.isArray(arsip.hujan) ? arsip.hujan : [],
+    dibuang: excluded
+      ? { jumlah: excluded.jumlah, contoh: (excluded.baris || []).slice(0, 20) }
+      : { jumlah: 0, contoh: [] },
+  });
 }
