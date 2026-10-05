@@ -1,5 +1,5 @@
 // api/cctv.js - pintu unggah snapshot CCTV (kunci wajib); parameter cam = inlet|outlet; GET = daftar snapshot
-import {put, list} from "@vercel/blob";
+import {put, list} from "./_blob.js";
 export default async (req, res) => {
   try {
     const q = req.query || {};

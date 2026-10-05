@@ -8,3 +8,8 @@ node_modules/
 piezometer/
 *.log
 .DS_Store
+
+.wrangler/
+_cf_test.mjs
+tg.json
+e_*.txt

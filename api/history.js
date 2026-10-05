@@ -1,5 +1,5 @@
 // api/history.js - pustakawan riwayat: GET /api/history?from=YYYY-MM-DD&to=YYYY-MM-DD
-import {list, get} from "@vercel/blob";
+import {list, get} from "./_blob.js";
 export default async (req, res) => {
   try {
     const from = String(req.query.from || "");

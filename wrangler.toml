@@ -1,0 +1,16 @@
+name = "ciawi-scada"
+compatibility_date = "2026-10-05"
+pages_build_output_dir = "."
+
+# Namespace KV untuk menggantikan @vercel/blob.
+# Buat dulu:  npx wrangler kv namespace create BLOB
+# lalu salin ID yang muncul ke bawah.
+[[kv_namespaces]]
+binding = "BLOB"
+id = "GANTI_DENGAN_ID_NAMESPACE_KAMU"
+
+# Rahasia (isi lewat Dashboard Cloudflare > Settings > Environment Variables,
+# jangan ditaruh di file ini):
+#   TELEGRAM_BOT_TOKEN
+#   TELEGRAM_CHAT_ID
+#   CCTV_UPLOAD_KEY

@@ -1,7 +1,15 @@
 // api/record.js - perekam server: dipanggil Vercel Cron tiap jam, idempoten per menit
-import {put, get, list} from "@vercel/blob";
+import {put, get, list} from "./_blob.js";
 async function fetchFleet(){
-  const r = await fetch(process.env.FLEET_URL, { cache: "no-store" });
+  // FLEET_URL berisi placeholder di environment Vercel sehingga selalu gagal.
+// Pakai origin aktif (CF_PAGES_URL / VERCEL_URL) + /api/fleet yang sudah
+// scraping sdatelemetry.com/fmsciawi/ langsung.
+const selfOrigin = process.env.CF_PAGES_URL
+  ? "https://" + process.env.CF_PAGES_URL
+  : process.env.VERCEL_URL
+    ? "https://" + process.env.VERCEL_URL
+    : "https://ciawi-scada.pages.dev";
+const r = await fetch(selfOrigin + "/api/fleet", { cache: "no-store" });
   if (!r.ok) throw new Error("fleet HTTP " + r.status);
   return r.json();
 }

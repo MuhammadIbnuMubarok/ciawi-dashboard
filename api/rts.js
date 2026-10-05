@@ -1,5 +1,5 @@
 // api/rts.js - live scrape RTS/ADR monitoring4system (login sesi) + cache Blob + CSV
-import {put, get} from "@vercel/blob";
+import {put, get} from "./_blob.js";
 const BASE = "https://ciawi.monitoring4system.com";
 const STORE = "rts/latest.json";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";

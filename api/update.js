@@ -1,5 +1,5 @@
 // api/update.js - snapshot update terjadwal: publish=1&time=HH:MM menyimpan snapshot mentah; GET membaca snapshot hari ini
-import {put, get, list} from "@vercel/blob";
+import {put, get, list} from "./_blob.js";
 // Sebelumnya memanggil FLEET_URL, yang di Vercel berisi placeholder sehingga
 // selalu 502. Sekarang memakai api/fleet.js yang sudah scraping
 // sdatelemetry.com/fmsciawi/ langsung (sumber resmi Ciawi).
