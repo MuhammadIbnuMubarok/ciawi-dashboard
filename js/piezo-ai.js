@@ -46,8 +46,14 @@
     var leg=document.getElementById("pz-leg");
     if(leg){ leg.innerHTML=""; keys.forEach(function(k,ki){ var s=document.createElement("span"); s.style.cssText="display:inline-block;margin:2px 8px 2px 0;font:10px monospace;color:"+PAL[ki%PAL.length]; s.textContent="# "+codeOf(k); leg.appendChild(s); }); }
   }
-  function render(){
-    if (document.getElementById("piezo-arsip-card")) return;
+  // Card arsip tidak lagi dimount ke dashboard pemantauan (permintaan 2026-10-05).
+    // Grafik interaktif Piezometer di header (pz-panel.js) TIDAK terpengaruh -
+    // file ini hanya menyediakan card tambahan + fallback jawaban AI.
+    function render(){
+      var lama=document.getElementById("piezo-arsip-card"); if(lama) lama.remove();
+      return;
+      /* eslint-disable no-unreachable */
+      if (document.getElementById("piezo-arsip-card")) return;
     var groups=["STA 0+310","STA 0+377.5","LAINNYA"].filter(function(gp){ return Object.keys(DATA.seri).some(function(k){ return groupOf(k)===gp; }); });
     if(!groups.length) return;
     var card=document.createElement("section"); card.id="piezo-arsip-card";
@@ -60,7 +66,12 @@
     sel.onchange=function(){ draw(card.querySelector("#pz-cv"), sel.value); info(sel.value); };
     sel.value=groups[0]; draw(card.querySelector("#pz-cv"), groups[0]); info(groups[0]);
   }
-  function tombolArsip(){ if (document.getElementById("btn-arsip-scroll")) return; var tgt=null; var bs=document.querySelectorAll("button"); for (var i=0;i<bs.length;i++){ if ((bs[i].textContent||"").trim()==="DASHBOARD") tgt=bs[i]; } var card=document.getElementById("piezo-arsip-card"); if (!tgt||!card) return; var nb=document.createElement("button"); nb.id="btn-arsip-scroll"; nb.textContent="GRAFIK ARSIP"; nb.style.cssText=tgt.style.cssText; nb.onclick=function(){ card.scrollIntoView({behavior:"smooth",block:"start"}); }; tgt.parentNode.insertBefore(nb, tgt.nextSibling); }
+  function tombolArsip(){
+    // tombol GRAFIK ARSIP ikut dihapus dari nav dashboard; card-nya sudah tidak
+    // ada. Pembersihan defensif kalau ada sisa dari cache DOM.
+    var b=document.getElementById("btn-arsip-scroll"); if(b) b.remove();
+    return;
+    if (document.getElementById("btn-arsip-scroll")) return; var tgt=null; var bs=document.querySelectorAll("button"); for (var i=0;i<bs.length;i++){ if ((bs[i].textContent||"").trim()==="DASHBOARD") tgt=bs[i]; } var card=document.getElementById("piezo-arsip-card"); if (!tgt||!card) return; var nb=document.createElement("button"); nb.id="btn-arsip-scroll"; nb.textContent="GRAFIK ARSIP"; nb.style.cssText=tgt.style.cssText; nb.onclick=function(){ card.scrollIntoView({behavior:"smooth",block:"start"}); }; tgt.parentNode.insertBefore(nb, tgt.nextSibling); }
   function jawabLokal(q){ if(!DATA) return "MODE CADANGAN: arsip belum dimuat - segarkan halaman."; var s=(q||"").toLowerCase(); var L=["MODE CADANGAN (tanpa LLM) - dihitung langsung dari arsip ter-audit (9 sheet, "+Object.keys(DATA.seri).length+" seri, "+(DATA.hujan||[]).length+" hari hujan):"]; var h=DATA.hujan||[]; if(/hujan|curah/.test(s) && h.length){ var mx=h[0], tot=0; h.forEach(function(x){ tot+=x.mm; if(x.mm>mx.mm) mx=x; }); var top=h.slice().sort(function(a,b){ return b.mm-a.mm; }).slice(0,5); L.push("Curah hujan: "+h.length+" hari ("+h[0].tanggal+" s/d "+h[h.length-1].tanggal+"), total "+tot.toFixed(1)+" mm."); L.push("Harian maksimum: "+mx.mm+" mm pada "+mx.tanggal+"."); L.push("5 hari terbasah: "+top.map(function(x){ return x.tanggal+" ("+x.mm+" mm)"; }).join(", ")+"."); } var codes=Object.keys(DATA.seri); var sebut=(s.match(/(ppu|ppd|ppa|ptu|pta|ptd|osp)\s?\d+/g)||[])[0]; if(sebut){ var cs=sebut.replace(/\s/g,"").toUpperCase(), key=null; codes.forEach(function(k){ if(!key && k.split("@")[0]===cs) key=k; }); if(key){ var ser=DATA.seri[key], last=ser[ser.length-1], first=ser[0]; var mn=1e18, mxx=-1e18; ser.forEach(function(pp){ if(pp[1]<mn)mn=pp[1]; if(pp[1]>mxx)mxx=pp[1]; }); var old=ser[Math.max(0,ser.length-91)][1]; L.push(cs+" ("+key+"): n="+ser.length+" bacaan "+first[0]+" s/d "+last[0]+"; terakhir "+last[1]+" m; min "+mn.toFixed(2)+" m; maks "+mxx.toFixed(2)+" m; delta 90 hari "+(last[1]-old).toFixed(2)+" m."); } else L.push("Kode "+cs+" tidak ditemukan di arsip."); } if(/tren|naik|turun|cepat|perubahan/.test(s)){ var mv=codes.map(function(k){ var ser=DATA.seri[k]; var old=ser[Math.max(0,ser.length-91)][1]; return { k:k, d:ser[ser.length-1][1]-old }; }).sort(function(a,b){ return b.d-a.d; }); L.push("Kenaikan tercepat 90 hari: "+mv.slice(0,3).map(function(x){ return x.k+" (+"+x.d.toFixed(2)+" m)"; }).join(", ")+"."); L.push("Perubahan terendah 90 hari: "+mv.slice(-2).map(function(x){ return x.k+" ("+x.d.toFixed(2)+" m)"; }).join(", ")+"."); } if(/korelasi|hubungan|pengaruh/.test(s)){ var hm={}; h.forEach(function(x){ hm[x.tanggal]=x.mm; }); var ups=0,n=0,base=0,nb=0; codes.slice(0,8).forEach(function(k){ var ser=DATA.seri[k]; for(var i=1;i<ser.length-3;i++){ var d0=ser[i-1][1], d3=ser[i+3][1]; var rain=(hm[ser[i][0]]||0)+(hm[ser[i-1][0]]||0); if(rain>=20){ ups+=d3-d0; n++; } else if(rain===0){ base+=d3-d0; nb++; } } }); if(n&&nb) L.push("Korelasi kasar: rata-rata perubahan elevasi tekanan 3 hari selepas hujan >=20 mm = "+(ups/n).toFixed(2)+" m ("+n+" kejadian); pada hari kering = "+(base/nb).toFixed(2)+" m ("+nb+" kejadian)."); } if(L.length<=1){ var tot2=0, mnD="9999-99-99", mxD="0000-00-00"; codes.forEach(function(k){ var ser=DATA.seri[k]; tot2+=ser.length; if(ser[0][0]<mnD)mnD=ser[0][0]; if(ser[ser.length-1][0]>mxD)mxD=ser[ser.length-1][0]; }); L.push("Ringkasan arsip: "+codes.length+" seri ("+tot2+" titik) lintas STA 0+310 & 0+377.5; rentang "+mnD+" s/d "+mxD+"; hujan "+h.length+" hari total "+h.reduce(function(a,x){ return a+x.mm; },0).toFixed(1)+" mm; acuan puncak 551.367 m."); L.push("Tanya spesifik: hujan maksimum, tren instrumen (sebut kode mis. PTA2), atau korelasi hujan-tekanan."); } return L.join("\n"); }
 function cadangan(q){ return new Response(JSON.stringify({ ok:true, reply: jawabLokal(q), mode:"cadangan" }), { status:200, headers:{ "Content-Type":"application/json" } }); }
 function siap(){

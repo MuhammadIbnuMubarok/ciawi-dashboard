@@ -665,10 +665,20 @@
       bukaPanel();
     });
 
+    // Status tab aktif disimpan eksplisit, bukan ditebak dari style attribute
+// (rapuh: bisa berubah format). Default-nya "status" sesuai TABON di bawah.
+    var SUB_AKTIF = "status";
+
+    function muatSeriJikaAktif() {
+      if (SUB_AKTIF === "grafik" && !SERI) muatSeri();
+      else if (SUB_AKTIF === "rekap" && !REKAP) muatRekap();
+    }
+
     function bukaPanel() {
       ov.style.display = "block";
       window.scrollTo(0, 0);
       load(el("pzTanggal").value);
+      muatSeriJikaAktif();
     }
 
     // tautan langsung: .../#piezometer membuka panel ini otomatis
