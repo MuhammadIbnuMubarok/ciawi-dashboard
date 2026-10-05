@@ -30,7 +30,12 @@ export default async (req, ctx) => {
         await send("🛰️ Bot UPB Update - Bendungan Ciawi\n📊 /update = laporan terkini (foto + angka)\n🚦 /status = status siaga dan TMA\n📷 /cctv = foto mata CCTV\n📖 /bantuan = menu ini", menu);
       } else if (text === "/update") {
         ctx.waitUntil((async function () {
-          const r = await fetch("https://ciawi-dashboard.vercel.app/api/telegram?cuaca=-", { cache: "no-store" });
+          //_DOMAIN-2026-10-05_
+// Domain lama "ciawi-dashboard.vercel.app" sudah DEPLOYMENT_DISABLED (402),
+// sehingga perintah /update selalu gagal. Pakai origin aktif sendiri supaya
+// otomatis benar kalau domain diganti.
+const HOST = "https://" + (process.env.VERCEL_URL || "ciawi-scada.vercel.app");
+const r = await fetch(HOST + "/api/telegram?cuaca=-", { cache: "no-store" });
           const j = await r.json().catch(function () { return null; });
           if (j && j.ok) await send("✅ Perintah 📊 /update terkirim ke grup • isi: foto + angka", menu);
           else await send("Gagal mengirim update: " + (j && j.error ? j.error : "tidak diketahui"), menu);

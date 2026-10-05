@@ -1,6 +1,13 @@
 // api/update.js - snapshot update terjadwal: publish=1&time=HH:MM menyimpan snapshot mentah; GET membaca snapshot hari ini
 import {put, get, list} from "@vercel/blob";
-async function fetchFleet(){ const r = await fetch(process.env.FLEET_URL, { cache: "no-store" }); if (!r.ok) throw new Error("fleet HTTP " + r.status); return r.json(); }
+// Sebelumnya memanggil FLEET_URL, yang di Vercel berisi placeholder sehingga
+// selalu 502. Sekarang memakai api/fleet.js yang sudah scraping
+// sdatelemetry.com/fmsciawi/ langsung (sumber resmi Ciawi).
+async function fetchFleet(){
+  const r = await fetch((process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "") + "/api/fleet", { cache: "no-store" });
+  if (!r.ok) throw new Error("fleet HTTP " + r.status);
+  return r.json();
+}
 export default async (req, res) => {
   try {
     const q = req.query || {};
