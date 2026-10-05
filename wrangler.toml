@@ -7,7 +7,7 @@ pages_build_output_dir = "."
 # lalu salin ID yang muncul ke bawah.
 [[kv_namespaces]]
 binding = "BLOB"
-id = "GANTI_DENGAN_ID_NAMESPACE_KAMU"
+id = "ebc1c7c51e7d4b22a6c9210c28057cb9"
 
 # Rahasia (isi lewat Dashboard Cloudflare > Settings > Environment Variables,
 # jangan ditaruh di file ini):

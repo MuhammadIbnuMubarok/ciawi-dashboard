@@ -15,18 +15,51 @@
 // Status: pakai `ket` dari sumber bila ada; bila tidak, ambang resmi modul
 // (tip + press) < izin. Ru = press / ((top - tip) * gamma).
 
-import fs from "node:fs";
-import path from "node:path";
+// Workers/Pages tidak punya node:fs / node:path. Import-nya dilakukan lewat
+// dynamic import di dalam baca() agar tidak gagal saat modul dimuat di Workers.
+import {
+  PIEZO_MASTER as masterImported,
+  PIEZO_HISTORY as historyImported,
+  PIEZO_ARSIP as arsipImported,
+  PIEZO_EXCLUDED as excludedImported,
+} from "./_piezo-data.js";
 
-const DATA = path.join(process.cwd(), "data");
+let _fs = null;
+let _path = null;
 
-function baca(nama) {
+async function muatNode() {
+  if (_fs) return true;
+  if (typeof process === "undefined" || !process.versions?.node) return false;
   try {
-    const p = path.join(DATA, nama);
-    if (!fs.existsSync(p)) return null;
-    return JSON.parse(fs.readFileSync(p, "utf8").replace(/^\uFEFF/, ""));
+    _fs = await import("node:fs");
+    _path = await import("node:path");
+    return true;
   } catch {
-    return null;
+    return false;
+  }
+}
+
+const DATA_DIR = "data";
+
+let CACHE = null;
+
+async function baca(nama) {
+  const bundled = {
+    "piezo-master.json": masterImported,
+    "piezo-history.json": historyImported,
+    "piezo-arsip.json": arsipImported,
+    "piezo-excluded.json": excludedImported,
+  };
+  // Cloudflare Workers/Pages tidak punya filesystem -> pakai data ter-bundle.
+  if (!(await muatNode()) || !_fs) return bundled[nama] ?? null;
+  try {
+    const p = _path.default ? _path.default.join(process.cwd(), DATA_DIR, nama)
+                           : _path.join(process.cwd(), DATA_DIR, nama);
+    if (!_fs.existsSync(p)) return bundled[nama] ?? null;
+    const txt = _fs.readFileSync(p, "utf8");
+    return JSON.parse(txt.replace(/^\uFEFF/, ""));
+  } catch {
+    return bundled[nama] ?? null;
   }
 }
 
@@ -48,10 +81,10 @@ function hitung(r, press) {
 export default async function handler(req, res) {
   const q = req.query || {};
 
-  const master = baca("piezo-master.json");
-  const history = baca("piezo-history.json");
-  const arsip = baca("piezo-arsip.json");
-  const excluded = baca("piezo-excluded.json");
+  const master = await baca("piezo-master.json");
+    const history = await baca("piezo-history.json");
+    const arsip = await baca("piezo-arsip.json");
+    const excluded = await baca("piezo-excluded.json");
 
   if (!master || !Array.isArray(master.alat)) {
     res.status(500).json({

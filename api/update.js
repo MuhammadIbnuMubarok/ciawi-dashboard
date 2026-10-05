@@ -1,12 +1,20 @@
 // api/update.js - snapshot update terjadwal: publish=1&time=HH:MM menyimpan snapshot mentah; GET membaca snapshot hari ini
 import {put, get, list} from "./_blob.js";
-// Sebelumnya memanggil FLEET_URL, yang di Vercel berisi placeholder sehingga
-// selalu 502. Sekarang memakai api/fleet.js yang sudah scraping
-// sdatelemetry.com/fmsciawi/ langsung (sumber resmi Ciawi).
+// Cloudflare Pages memblokir fetch ke origin sendiri (403), jadi panggil
+// handler /api/fleet langsung di proses yang sama.
 async function fetchFleet(){
-  const r = await fetch((process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "") + "/api/fleet", { cache: "no-store" });
-  if (!r.ok) throw new Error("fleet HTTP " + r.status);
-  return r.json();
+  const { default: fleetHandler } = await import("./fleet.js");
+  let payload = null;
+  const res = {
+    _status: 200,
+    status(c) { this._status = c; return this; },
+    setHeader() { return this; },
+    json(o) { payload = o; return this; },
+    send(b) { payload = b; return this; },
+  };
+  await fleetHandler({ query: {}, method: "GET", headers: {} }, res);
+  if (res._status !== 200 || !payload) throw new Error("fleet internal HTTP " + res._status);
+  return payload;
 }
 export default async (req, res) => {
   try {

@@ -1,17 +1,21 @@
 // api/record.js - perekam server: dipanggil Vercel Cron tiap jam, idempoten per menit
 import {put, get, list} from "./_blob.js";
 async function fetchFleet(){
-  // FLEET_URL berisi placeholder di environment Vercel sehingga selalu gagal.
-// Pakai origin aktif (CF_PAGES_URL / VERCEL_URL) + /api/fleet yang sudah
-// scraping sdatelemetry.com/fmsciawi/ langsung.
-const selfOrigin = process.env.CF_PAGES_URL
-  ? "https://" + process.env.CF_PAGES_URL
-  : process.env.VERCEL_URL
-    ? "https://" + process.env.VERCEL_URL
-    : "https://ciawi-scada.pages.dev";
-const r = await fetch(selfOrigin + "/api/fleet", { cache: "no-store" });
-  if (!r.ok) throw new Error("fleet HTTP " + r.status);
-  return r.json();
+  // Cloudflare Pages memblokir fetch ke origin sendiri lewat /api/fleet (403),
+  // jadi panggil handler-nya langsung di dalam proses yang sama - identik
+  // hasilnya dan tanpa satu round-trip jaringan.
+  const { default: fleetHandler } = await import("./fleet.js");
+  let payload = null;
+  const res = {
+    _status: 200,
+    status(c) { this._status = c; return this; },
+    setHeader() { return this; },
+    json(o) { payload = o; return this; },
+    send(b) { payload = b; return this; },
+  };
+  await fleetHandler({ query: {}, method: "GET", headers: {} }, res);
+  if (res._status !== 200 || !payload) throw new Error("fleet internal HTTP " + res._status);
+  return payload;
 }
 export default async (req, res) => {
   try {
