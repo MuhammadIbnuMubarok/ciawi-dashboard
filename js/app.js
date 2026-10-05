@@ -353,11 +353,25 @@ const labs=d.labels.map((L,i)=>{
   // lewat tooltip. Font kecil + sebagian label disembunyikan agar tidak padat.
   const tgl=L.replace(/^\\S+\\s+/,"");
   return '<div class="shrink-0 text-[8px] leading-tight text-on-surface-variant text-center truncate" style="width:22px" title="'+L+'">'+tgl+'</div>';}).join("");
+const barsArea='<div class="flex items-end gap-[2px]" style="height:118px;min-width:'+(d.labels.length*24)+'px">'+bars+'</div>'+
+   '<div class="flex gap-[2px] pt-1 mt-1 border-t border-outline-variant/30" style="min-width:'+(d.labels.length*24)+'px">'+labs+'</div>';
 el.innerHTML='<div class="text-[10px] text-on-surface-variant text-right mb-1">Terekam: Q In '+nIn+'/'+d.labels.length+' • Q Out '+nOut+'/'+d.labels.length+' bulan • geser ke bawah</div>'+
- '<div class="overflow-x-auto overflow-y-hidden pb-1">'+
-   '<div class="flex items-end gap-[2px]" style="height:118px;min-width:'+(d.labels.length*24)+'px">'+bars+'</div>'+
-   '<div class="flex gap-[2px] pt-1 mt-1 border-t border-outline-variant/30" style="min-width:'+(d.labels.length*24)+'px">'+labs+'</div>'+
- '</div>';
+ '<div class="overflow-x-auto overflow-y-hidden pb-1" id="qbar-scroll">'+barsArea+'</div>';
+// Data debit sangat jarang (12 dari 44 bulan), dan hampir semuanya berada
+// di bagian tengah/kanan bar. Area scroll default berada di x=0, jadi yang
+// tampil hanya slot kosong dan grafik tampak rusak padahal isinya ada.
+// Scroll otomatis ke bar data pertama supaya langsung terlihat.
+const sc=$("qbar-scroll");
+if(sc){
+  const filled=sc.querySelectorAll('div[style*="background:#"]');
+  if(filled.length){
+    const target=filled[0];
+    sc.scrollLeft=Math.max(0,target.offsetLeft-24);
+  }else{
+    const hariIni=(()=>{const K=d.labels.length-1;return sc.querySelectorAll('div[title]')[K];})();
+    if(hariIni) sc.scrollLeft=Math.max(0,sc.scrollWidth-sc.clientWidth);
+  }
+}
 const sum=document.getElementById('metric-reduksi-summary');
 if(sum) sum.textContent="Terekam Q In "+nIn+" & Q Out "+nOut+" dari "+d.labels.length+" bulan • bar bergaris = tidak terekam";}
 function tipBox(){let t=document.getElementById("hover-tip");if(!t){t=document.createElement("div");t.id="hover-tip";t.style.cssText="position:fixed;z-index:9999;pointer-events:none;display:none;background:rgba(11,19,38,.95);border:1px solid rgba(76,215,246,.4);border-radius:6px;padding:6px 8px;font-size:11px;line-height:1.5;color:#e6edf7;max-width:280px;box-shadow:0 6px 18px rgba(0,0,0,.5);";document.body.appendChild(t);}return t;}
