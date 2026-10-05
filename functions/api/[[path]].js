@@ -15,9 +15,9 @@
 // Semua yang terkait KV ditangani oleh api/_blob.js (shim di atas
 // @vercel/blob) dan env diteruskan lewat setEnv() pada setiap request.
 
-import * as blobShim from "../../api/_blob.js";
+import * as blobShim from "../../_handlers/_blob.js";
 
-const H = (n) => () => import("../../api/" + n + ".js");
+const H = (n) => () => import("../../_handlers/" + n + ".js");
 
 // ---------- peta routing: path -> modul handler ----------
 const ROUTES = {
@@ -164,8 +164,29 @@ function makeReq(request, env, ctx) {
   };
 }
 
-export async function onRequest(context) {
-  const { request, env, ctx } = context;
+export async function onRequest(context, extraEnv) {
+  const { request } = context;
+  // Pages Functions mengirim binding di context.env; beberapa versi hanya
+  // mengirimnya di argumen kedua. Gabungkan keduanya supaya secret tidak
+  // pernah hilang.
+  const env = {
+    ...(context.env && typeof context.env === "object" ? context.env : {}),
+    ...(extraEnv && typeof extraEnv === "object" ? extraEnv : {}),
+  };
+  const ctx = context.ctx || {};
+
+  // Cloudflare Workers/Pages tidak menyediakan `process.env` - variabel hanya
+  // tersedia lewat argumen `env`. Handler di api/*.js masih membaca
+  // process.env.* (gaya Vercel/Node), jadiympaiin di sini per request.
+  if (typeof globalThis.process === "undefined") {
+    globalThis.process = { env: {} };
+  }
+  if (!globalThis.process.env) globalThis.process.env = {};
+  for (const [k, v] of Object.entries(env || {})) {
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+      globalThis.process.env[k] = String(v);
+    }
+  }
 
   let path = new URL(request.url).pathname.replace(/^\/+|\/+$/g, "");
   // request datang untuk /api/<nama>; buang prefix "api"

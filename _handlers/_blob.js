@@ -68,15 +68,17 @@ export async function put(pathname, value, options, env) {
   const store = ns(env);
   const { data, type } = buildPayload(pathname, value, options);
   const body = typeof data === "string" ? data : data;
-  const meta = await store.put(pathname, body, {
-    httpMetadata: { contentType: type, cacheControl: (options && options.addRandomSuffix) ? undefined : "public, max-age=31536000, immutable" },
-  }).catch(async (e) => {
-    if (e && /exceeded|limit/i.test(String(e))) {
-      // cacheControl tidak didukung di semua plan; coba lagi tanpa
-      return store.put(pathname, body, { httpMetadata: { contentType: type } });
-    }
-    throw e;
-  });
+  // Workers KV menimpa secara normal; allowOverwrite tidak relevan di sini
+  // (perilaku itu hanya milik @vercel/blob).
+  const meta = await store
+    .put(pathname, body, { httpMetadata: { contentType: type } })
+    .catch(async (e) => {
+      // Beberapa binding KV menolak httpMetadata; coba lagi polos.
+      if (e && /metadata|option|type/i.test(String(e))) {
+        return store.put(pathname, body);
+      }
+      throw e;
+    });
 
   const size =
     typeof body === "string" ? new TextEncoder().encode(body).length : body?.byteLength ?? 0;
@@ -101,11 +103,30 @@ export async function get(pathname, options, env) {
   const obj = await store.get(pathname, type === "arrayBuffer" ? "arrayBuffer" : "text");
   if (obj === null) return null;
 
-  if (type === "stream") return { value: obj.body, contentType: "application/octet-stream" };
+  if (type === "stream") {
+    // Pemanggil di record.js memeriksa `b.stream`, jadi sediakan objek
+    // ReadableStream di sini (bentuk @vercel/blob).
+    const rs = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(obj));
+        controller.close();
+      },
+    });
+    return { value: rs, stream: rs, contentType: "application/octet-stream", size: obj.length };
+  }
   const meta = await store.getWithMetadata(pathname, type === "arrayBuffer" ? "arrayBuffer" : "text");
   if (meta === null) return null;
+  // record.js (dan kemungkinan telegram.js) selalu membaca `b.stream`
+  // meski tidak meminta type:"stream", jadi sertakan selalu.
+  const rs = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(String(meta.value)));
+      controller.close();
+    },
+  });
   return {
     value: meta.value,
+    stream: rs,
     contentType: meta.metadata?.contentType || "text/plain",
     size: typeof meta.value === "string" ? meta.value.length : meta.value?.byteLength ?? 0,
     etag: meta.metadata?.etag,
