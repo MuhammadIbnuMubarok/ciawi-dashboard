@@ -102,7 +102,6 @@ async function kirimFoto(token, chat, bytes, nama, caption) {
   const fd = new FormData();
   fd.append("chat_id", String(chat));
   fd.append("caption", caption);
-  fd.append("parse_mode", "HTML");
   fd.append("photo", new Blob([bytes], { type: "image/jpeg" }), nama + ".jpg");
   const r = await fetch("https://api.telegram.org/bot" + token + "/sendPhoto", {
     method: "POST",
@@ -118,7 +117,6 @@ async function kirimPesan(token, chat, text) {
     body: JSON.stringify({
       chat_id: chat,
       text,
-      parse_mode: "HTML",
       disable_web_page_preview: true,
     }),
   });
@@ -161,48 +159,57 @@ export default async function handler(req, res) {
     const sIn = tma.sukamahi.inlet?.tma ?? null;
     const sOut = tma.sukamahi.outlet?.tma ?? null;
 
-    // Keterangan per foto. Outlet menyebut elevasi (kenaikan dari titik acuan
-    // Tailrace) seperti pada laporan lapangan; Inlet menyebut TMA saja.
+    // Keterangan per foto. Mengikuti format laporan lapangan:
+    //   Update Bendungan Ciawi
+    //   05/10/2026 pukul 15:01 WIB
+    //   Status: Normal
+    //   Inlet: +505.66 (tma 1.46 m)
+    //   Outlet: +487.26 (tma 0.34 m)
+    //   Cuaca: Mendung
+    // Outlet memakai elevasi (kenaikan dari titik acuan Tailrace); Inlet
+    // memakai TMA, sesuai format yang dipakai di lapangan.
     const ket = [
       {
         stream: "CiawiInlet",
         nama: "ciawi-inlet",
-        judul: "Inlet Ciawi",
         cap:
-          `<b>${tgl} pukul ${jam} WIB</b>\n` +
-          `<b>Inlet Bendungan Ciawi</b> (Normal)\n` +
-          `TMA: ${m(cIn)}\n` +
-          `Cuaca: <i>${cuaca}</i>`,
+          `Update Bendungan Ciawi\n` +
+          `${tgl} pukul ${jam} WIB\n\n` +
+          `Status: Normal\n` +
+          `Inlet: +${fmt2(504.2 + (cIn ?? 0))} (tma ${m(cIn)})\n` +
+          `Outlet: +${fmt2(486.92 + (cOut ?? 0))} (tma ${m(cOut)})\n\n` +
+          `Cuaca: ${cuaca}`,
       },
       {
         stream: "CiawiOutlet",
         nama: "ciawi-outlet",
-        judul: "Outlet Ciawi",
         cap:
-          `<b>${tgl} pukul ${jam} WIB</b>\n` +
-          `<b>Outlet Bendungan Ciawi</b>\n` +
-          `TMA: ${m(cOut)}\n` +
-          `Cuaca: <i>${cuaca}</i>`,
+          `Update Bendungan Ciawi - Pintu Pengatur\n` +
+          `${tgl} pukul ${jam} WIB\n\n` +
+          `Status: Normal\n` +
+          `Outlet: +${fmt2(486.92 + (cOut ?? 0))} (tma ${m(cOut)})\n\n` +
+          `Cuaca: ${cuaca}`,
       },
       {
         stream: "SukamahiInlet",
         nama: "sukamahi-inlet",
-        judul: "Inlet Sukamahi",
         cap:
-          `<b>${tgl} pukul ${jam} WIB</b>\n` +
-          `<b>Inlet Bendungan Sukamahi</b>\n` +
-          `TMA: ${m(sIn)}\n` +
-          `Cuaca: <i>${cuaca}</i>`,
+          `Update Bendungan Sukamahi\n` +
+          `${tgl} pukul ${jam} WIB\n\n` +
+          `Status: Normal\n` +
+          `Inlet: ${m(sIn)}\n` +
+          `Outlet: ${m(sOut)}\n\n` +
+          `Cuaca: ${cuaca}`,
       },
       {
         stream: "SukamahiOutlet",
         nama: "sukamahi-outlet",
-        judul: "Outlet Sukamahi",
         cap:
-          `<b>${tgl} pukul ${jam} WIB</b>\n` +
-          `<b>Outlet Bendungan Sukamahi</b>\n` +
-          `TMA: ${m(sOut)}\n` +
-          `Cuaca: <i>${cuaca}</i>`,
+          `Update Bendungan Sukamahi - Pintu Pengatur\n` +
+          `${tgl} pukul ${jam} WIB\n\n` +
+          `Status: Normal\n` +
+          `Outlet: ${m(sOut)}\n\n` +
+          `Cuaca: ${cuaca}`,
       },
     ];
 
